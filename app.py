@@ -91,7 +91,7 @@ STYLE_VARIATIONS = {
     }
 }
 
-def generate_image_variation(image, style_name, variation_prompt):
+def generate_image_variation(image, style_name, variation_prompt, enhancements=None):
     """
     Generate a specific style variation using Gemini 2.5 Flash Image (Nano Banana)
     """
@@ -106,9 +106,29 @@ def generate_image_variation(image, style_name, variation_prompt):
         genai.configure(api_key=api_key)
         client = genai.GenerativeModel('gemini-2.5-flash-image-preview')
         
-        prompt = f"Transform this photo into: {variation_prompt}. Generate the transformed image."
+        # Build enhancement text
+        enhancement_text = ""
+        if enhancements:
+            enhancements_list = []
+            if enhancements.get('hair'):
+                enhancements_list.append("full thick hair with no bald patches or thinning areas, natural hairline, voluminous healthy hair")
+            if enhancements.get('skin'):
+                enhancements_list.append("smooth flawless skin, reduced wrinkles and fine lines, even skin tone, no blemishes or imperfections")
+            if enhancements.get('teeth'):
+                enhancements_list.append("bright white teeth, perfect smile, dental enhancement")
+            if enhancements.get('eyes'):
+                enhancements_list.append("bright clear eyes, enhanced eye color, sparkle and clarity, well-defined features")
+            if enhancements.get('lighting'):
+                enhancements_list.append("professional studio lighting, perfect illumination, flattering light setup")
+            if enhancements.get('sharpness'):
+                enhancements_list.append("enhanced sharpness and clarity, crisp details, high definition quality")
+            
+            if enhancements_list:
+                enhancement_text = f" IMPORTANT ENHANCEMENTS: {', '.join(enhancements_list)}."
         
-        # Use the correct method: client.models.generate_content
+        prompt = f"Transform this photo into: {variation_prompt}.{enhancement_text} Generate a high-quality transformed image with all requested enhancements applied naturally and realistically."
+        
+        # Use the correct method: client.generate_content
         response = client.generate_content([prompt, image])
         
         # Check for image in response
@@ -179,6 +199,21 @@ with col_style:
         format_func=lambda x: x.title(),
         key="style_selector"
     )
+    
+    st.markdown("---")
+    st.subheader("✨ Enhancement Options")
+    st.caption("Select enhancements to apply to all variations")
+    
+    # Enhancement checkboxes
+    enhancements = {}
+    enhancements['hair'] = st.checkbox("💇 Hair Enhancement (cover bald patches, fuller hair)", value=False)
+    enhancements['skin'] = st.checkbox("✨ Skin Smoothing (reduce wrinkles, blemishes)", value=False)
+    enhancements['teeth'] = st.checkbox("😁 Teeth Whitening", value=False)
+    enhancements['eyes'] = st.checkbox("👁️ Eye Enhancement (brighter, sharper)", value=False)
+    enhancements['lighting'] = st.checkbox("💡 Professional Lighting", value=True)
+    enhancements['sharpness'] = st.checkbox("🔍 Enhanced Sharpness & Clarity", value=True)
+    
+    st.session_state.enhancements = enhancements
 
 # Show variations if image is uploaded
 if st.session_state.original_image is not None:
@@ -219,6 +254,20 @@ if st.session_state.original_image is not None:
         if st.button("🎨 Generate Selected Variations", type="primary", use_container_width=True):
             st.session_state.generated_images = {}
             
+            # Show selected enhancements
+            active_enhancements = [k for k, v in st.session_state.enhancements.items() if v]
+            if active_enhancements:
+                enhancement_names = {
+                    'hair': 'Hair Enhancement',
+                    'skin': 'Skin Smoothing', 
+                    'teeth': 'Teeth Whitening',
+                    'eyes': 'Eye Enhancement',
+                    'lighting': 'Professional Lighting',
+                    'sharpness': 'Enhanced Sharpness'
+                }
+                active_names = [enhancement_names[e] for e in active_enhancements]
+                st.info(f"✨ Applying enhancements: {', '.join(active_names)}")
+            
             progress_bar = st.progress(0)
             status_text = st.empty()
             
@@ -231,7 +280,8 @@ if st.session_state.original_image is not None:
                 generated = generate_image_variation(
                     st.session_state.original_image,
                     selected_style,
-                    var_prompt
+                    var_prompt,
+                    st.session_state.enhancements
                 )
                 
                 if generated:
@@ -315,21 +365,30 @@ with st.sidebar:
     st.markdown("""
     1. **Upload** your photo
     2. **Choose** a style category
-    3. **Select** one or more variations
-    4. **Generate** styled images
-    5. **Download** as ZIP or individually
+    3. **Select enhancements** (optional)
+       - Hair enhancement
+       - Skin smoothing
+       - Teeth whitening
+       - Eye enhancement
+       - Professional lighting
+       - Enhanced sharpness
+    4. **Select** one or more variations
+    5. **Generate** styled images
+    6. **Download** as ZIP or individually
     
     ---
     
     **Features:**
     - ✅ Multiple variations per style
+    - ✅ Professional enhancements
+    - ✅ AI-powered transformations
     - ✅ Bulk ZIP download
     - ✅ Individual downloads
     - ✅ No storage, real-time processing
     
     ---
     
-    **Powered by:** Google Gemini AI
+    **Powered by:** Google Gemini 2.5 Flash (Nano Banana)
     """)
     
     if st.button("🔄 Reset All", use_container_width=True):
