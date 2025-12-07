@@ -1,8 +1,7 @@
 import streamlit as st
-import requests
+import google.generativeai as genai
 from PIL import Image
 import io
-import base64
 import os
 
 # Page config
@@ -43,63 +42,48 @@ if 'processed_image' not in st.session_state:
 if 'original_image' not in st.session_state:
     st.session_state.original_image = None
 
-def process_image_with_nanobananapro(image, style):
+def process_image_with_gemini(image, style):
     """
-    Process image using Nano Banana Pro API
+    Process image using Google Gemini API with Imagen
     """
-    api_key = os.getenv("NANOBANANAPRO_API_KEY") or st.secrets.get("NANOBANANAPRO_API_KEY", None)
+    api_key = os.getenv("GOOGLE_API_KEY") or st.secrets.get("GOOGLE_API_KEY", None)
     
     if not api_key:
-        st.error("⚠️ Nano Banana Pro API key not found. Please add it to Streamlit secrets.")
+        st.error("⚠️ Google API key not found. Please add GOOGLE_API_KEY to Streamlit secrets.")
         return None
     
     try:
-        # Convert image to bytes
-        img_byte_arr = io.BytesIO()
-        image.save(img_byte_arr, format='PNG')
-        img_byte_arr = img_byte_arr.getvalue()
-        
-        # Encode to base64
-        img_base64 = base64.b64encode(img_byte_arr).decode()
-        
-        # Prepare API call to Nano Banana Pro
-        headers = {
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json"
-        }
+        # Configure Gemini
+        genai.configure(api_key=api_key)
         
         # Style-specific prompts for better results
         style_prompts = {
-            "professional": "professional corporate headshot, studio lighting, formal business attire, clean background",
-            "fun": "vibrant colorful playful style, bright colors, cheerful energetic mood",
-            "artistic": "artistic creative expressive style, painterly effect, unique artistic vision",
-            "vintage": "vintage retro classic look, nostalgic film grain, warm tones",
-            "modern": "modern clean contemporary style, minimalist aesthetic, crisp sharp details"
+            "professional": "Transform this photo into a professional corporate headshot with studio lighting, formal business style, clean professional background, sharp focus, high quality portrait photography",
+            "fun": "Transform this photo into a fun, vibrant, and playful style with bright cheerful colors, energetic mood, joyful atmosphere, pop art influence",
+            "artistic": "Transform this photo into an artistic masterpiece with creative expressive style, painterly effects, unique artistic vision, creative interpretation, fine art photography style",
+            "vintage": "Transform this photo into a vintage classic style with retro film aesthetic, nostalgic warm tones, subtle film grain, 1970s photography style, timeless appeal",
+            "modern": "Transform this photo into a modern contemporary style with clean minimalist aesthetic, crisp sharp details, modern color grading, sleek sophisticated look"
         }
         
-        payload = {
-            "image": img_base64,
-            "prompt": style_prompts.get(style, ""),
-            "style": style,
-            # Add other parameters based on Nano Banana Pro API documentation
-        }
+        prompt = style_prompts.get(style, "Transform this photo into a stylized artistic version")
         
-        # Replace with actual Nano Banana Pro endpoint
-        # response = requests.post(
-        #     "https://api.nanobananapro.com/v1/image/process",
-        #     headers=headers,
-        #     json=payload,
-        #     timeout=60
-        # )
-        # 
-        # if response.status_code == 200:
-        #     result = response.json()
-        #     processed_image_base64 = result['image']
-        #     processed_image_bytes = base64.b64decode(processed_image_base64)
-        #     return Image.open(io.BytesIO(processed_image_bytes))
+        # Use Gemini Pro Vision model
+        model = genai.GenerativeModel('gemini-1.5-flash')
         
-        # For demo purposes, returning original image
-        # Remove this and uncomment above code when using real API
+        # Generate styled description
+        response = model.generate_content([
+            prompt + "\n\nProvide a detailed description of how this image would look with this style applied, focusing on colors, lighting, composition, and mood.",
+            image
+        ])
+        
+        description = response.text
+        
+        # Since Gemini doesn't directly transform images, we'll return the original
+        # with a description overlay for now
+        # Note: For actual image transformation, you'd need Imagen API access
+        st.info(f"🎨 **Style Analysis**: {description}")
+        st.warning("Note: Full image transformation requires Imagen API. Currently showing analysis.")
+        
         return image
         
     except Exception as e:
@@ -108,7 +92,7 @@ def process_image_with_nanobananapro(image, style):
 
 # App Header
 st.title("📸 Photo Style Converter")
-st.markdown("Transform your photos with AI-powered styles")
+st.markdown("Transform your photos with AI-powered styles using Google Gemini")
 st.markdown("---")
 
 # Style selection
@@ -154,18 +138,17 @@ if uploaded_file is not None:
             st.image(st.session_state.processed_image, use_container_width=True)
         else:
             st.subheader("✨ Processed")
-            st.info("👆 Click 'Apply Style' to process your image")
+            st.info("👆 Click 'Analyze Style' to process your image")
     
     st.markdown("")
     
     # Process button
-    if st.button("✨ Apply Style", type="primary"):
-        with st.spinner(f"🎨 Applying {selected_style} style to your image..."):
-            processed = process_image_with_nanobananapro(image, selected_style)
+    if st.button("✨ Analyze Style", type="primary"):
+        with st.spinner(f"🎨 Analyzing {selected_style} style for your image..."):
+            processed = process_image_with_gemini(image, selected_style)
             if processed:
                 st.session_state.processed_image = processed
-                st.success("✅ Image processed successfully!")
-                st.balloons()
+                st.success("✅ Image analyzed successfully!")
     
     # Download section
     if st.session_state.processed_image is not None:
@@ -187,7 +170,7 @@ if uploaded_file is not None:
             use_container_width=True
         )
         
-        st.success("👆 Click the button above to download your styled photo!")
+        st.success("👆 Click the button above to download your photo!")
 
 else:
     # Show instructions when no image is uploaded
@@ -206,13 +189,14 @@ st.markdown(
 with st.sidebar:
     st.header("ℹ️ About")
     st.markdown("""
-    **Photo Style Converter** uses AI to transform your photos into different artistic styles.
+    **Photo Style Converter** uses Google Gemini AI to analyze and describe photo styles.
     
     **How to use:**
     1. Choose a style
     2. Upload your photo
-    3. Click 'Apply Style'
-    4. Download your result
+    3. Click 'Analyze Style'
+    4. Get AI style analysis
+    5. Download your photo
     
     **Styles available:**
     - 🎯 Professional
@@ -226,5 +210,9 @@ with st.sidebar:
     **Privacy & Security:**
     - ✅ No image storage
     - ✅ Real-time processing
-    - ✅ Secure processing
+    - ✅ Secure API calls
+    
+    ---
+    
+    **Note:** This version uses Gemini for style analysis. For actual image transformation, Imagen API access is required.
     """)
