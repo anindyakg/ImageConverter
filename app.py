@@ -60,10 +60,10 @@ if 'generated_images' not in st.session_state:
 # Style variations - 4 options per style
 STYLE_VARIATIONS = {
     "professional": {
-        "Corporate Executive": "professional corporate executive headshot, dark suit, confident expression, modern office background, studio lighting, sharp focus",
-        "Creative Professional": "professional creative industry headshot, smart casual attire, approachable expression, bright modern workspace, natural lighting",
-        "LinkedIn Classic": "classic professional LinkedIn profile photo, business formal attire, neutral background, professional studio portrait",
-        "Business Casual": "professional business casual style, relaxed yet polished, contemporary setting, friendly professional demeanor"
+        "Corporate Executive": "professional corporate executive headshot framed from head to chest level, dark suit, confident expression, modern office background, studio lighting, sharp focus, professional portrait crop",
+        "Creative Professional": "professional creative industry headshot framed from head to chest level, smart casual attire, approachable expression, bright modern workspace, natural lighting, professional portrait crop",
+        "LinkedIn Classic": "classic professional LinkedIn profile photo framed from head to chest level, business formal attire, neutral background, professional studio portrait, proper headshot framing",
+        "Business Casual": "professional business casual style headshot framed from head to chest level, relaxed yet polished, contemporary setting, friendly professional demeanor, proper portrait crop"
     },
     "fun": {
         "Vibrant Pop Art": "fun vibrant pop art style, bold bright colors, playful energy, comic book aesthetic, dynamic composition",
@@ -126,7 +126,12 @@ def generate_image_variation(image, style_name, variation_prompt, enhancements=N
             if enhancements_list:
                 enhancement_text = f" IMPORTANT ENHANCEMENTS: {', '.join(enhancements_list)}."
         
-        prompt = f"Transform this photo into: {variation_prompt}.{enhancement_text} IMPORTANT: Keep all enhancements subtle and natural. The result should look very close to the original photo, just enhanced and polished. Do not make dramatic changes to hair, face structure, or overall appearance. Generate a high-quality transformed image with all requested enhancements applied naturally and realistically."
+        # Add framing instruction for professional style
+        framing_text = ""
+        if style_name == "professional":
+            framing_text = " CRITICAL FRAMING: Image must be framed from head to chest level only (professional headshot crop). Do not show full body. Proper portrait framing with shoulders and upper chest visible."
+        
+        prompt = f"Transform this photo into: {variation_prompt}.{framing_text}{enhancement_text} IMPORTANT: Keep all enhancements subtle and natural. The result should look very close to the original photo, just enhanced and polished. Do not make dramatic changes to hair, face structure, or overall appearance. Generate a high-quality transformed image with all requested enhancements applied naturally and realistically."
         
         # Use the correct method: client.generate_content
         response = client.generate_content([prompt, image])
@@ -171,8 +176,18 @@ def create_zip_file(images_dict):
     return zip_buffer
 
 # App Header
-st.title("📸 Photo Style Converter")
-st.markdown("Transform your photos with AI-powered styles - Select multiple variations!")
+col_header1, col_header2 = st.columns([3, 1])
+
+with col_header1:
+    st.title("📸 Photo Style Converter")
+    st.markdown("Transform your photos with AI-powered styles - Select multiple variations!")
+
+with col_header2:
+    st.markdown("")  # Spacing
+    if st.button("🔄 Start Over", type="secondary", use_container_width=True):
+        st.session_state.clear()
+        st.rerun()
+
 st.markdown("---")
 
 # Main layout
@@ -378,6 +393,12 @@ with st.sidebar:
     
     ---
     
+    **Professional Style:**
+    - All images cropped head to chest
+    - Perfect for LinkedIn, resumes, business cards
+    
+    ---
+    
     **Features:**
     - ✅ Multiple variations per style
     - ✅ Professional enhancements
@@ -391,6 +412,8 @@ with st.sidebar:
     **Powered by:** Google Gemini 2.5 Flash (Nano Banana)
     """)
     
-    if st.button("🔄 Reset All", use_container_width=True):
+    st.markdown("---")
+    
+    if st.button("🔄 Reset Everything", use_container_width=True, type="primary"):
         st.session_state.clear()
         st.rerun()
