@@ -324,6 +324,54 @@ if st.session_state.original_image is not None:
         
         st.markdown("---")
         
+        # Regenerate button
+        col_regen1, col_regen2 = st.columns([2, 1])
+        with col_regen2:
+            if st.button("🔄 Not Satisfied - Regenerate", type="secondary", use_container_width=True):
+                st.session_state.generated_images = {}
+                
+                # Show selected enhancements
+                active_enhancements = [k for k, v in st.session_state.enhancements.items() if v]
+                if active_enhancements:
+                    enhancement_names = {
+                        'hair': 'Hair Enhancement',
+                        'skin': 'Skin Smoothing', 
+                        'teeth': 'Teeth Whitening',
+                        'eyes': 'Eye Enhancement',
+                        'lighting': 'Professional Lighting',
+                        'sharpness': 'Enhanced Sharpness'
+                    }
+                    active_names = [enhancement_names[e] for e in active_enhancements]
+                    st.info(f"✨ Applying enhancements: {', '.join(active_names)}")
+                
+                progress_bar = st.progress(0)
+                status_text = st.empty()
+                
+                total = len(st.session_state.selected_samples)
+                
+                for idx, var_name in enumerate(st.session_state.selected_samples):
+                    status_text.text(f"Regenerating {var_name}... ({idx+1}/{total})")
+                    
+                    var_prompt = variations[var_name]
+                    generated = generate_image_variation(
+                        st.session_state.original_image,
+                        selected_style,
+                        var_prompt,
+                        st.session_state.enhancements
+                    )
+                    
+                    if generated:
+                        st.session_state.generated_images[var_name] = generated
+                    
+                    progress_bar.progress((idx + 1) / total)
+                
+                status_text.empty()
+                progress_bar.empty()
+                st.success(f"✅ Regenerated {len(st.session_state.generated_images)} variations!")
+                st.rerun()
+        
+        st.markdown("---")
+        
         # Download options
         col1, col2 = st.columns(2)
         
