@@ -44,7 +44,7 @@ if 'original_image' not in st.session_state:
 
 def process_image_with_gemini(image, style):
     """
-    Process image using Google Gemini API with Imagen
+    Process image using Gemini 2.5 Flash (Nano Banana) for image generation
     """
     api_key = os.getenv("GOOGLE_API_KEY") or st.secrets.get("GOOGLE_API_KEY", None)
     
@@ -56,38 +56,43 @@ def process_image_with_gemini(image, style):
         # Configure Gemini
         genai.configure(api_key=api_key)
         
-        # Style-specific prompts for better results
+        # Style-specific prompts for image generation
         style_prompts = {
-            "professional": "Transform this photo into a professional corporate headshot with studio lighting, formal business style, clean professional background, sharp focus, high quality portrait photography",
-            "fun": "Transform this photo into a fun, vibrant, and playful style with bright cheerful colors, energetic mood, joyful atmosphere, pop art influence",
-            "artistic": "Transform this photo into an artistic masterpiece with creative expressive style, painterly effects, unique artistic vision, creative interpretation, fine art photography style",
-            "vintage": "Transform this photo into a vintage classic style with retro film aesthetic, nostalgic warm tones, subtle film grain, 1970s photography style, timeless appeal",
-            "modern": "Transform this photo into a modern contemporary style with clean minimalist aesthetic, crisp sharp details, modern color grading, sleek sophisticated look"
+            "professional": "Generate a professional corporate headshot version of this person with studio lighting, formal business attire, clean neutral background, sharp focus, high quality professional photography style",
+            "fun": "Generate a fun, vibrant, and playful version of this photo with bright cheerful colors, energetic mood, joyful atmosphere, pop art influences, creative and upbeat style",
+            "artistic": "Generate an artistic masterpiece version with creative expressive style, painterly effects, unique artistic vision, fine art photography aesthetic, creative interpretation",
+            "vintage": "Generate a vintage classic version with retro film aesthetic, nostalgic warm tones, subtle film grain, 1970s photography style, timeless classic appeal",
+            "modern": "Generate a modern contemporary version with clean minimalist aesthetic, crisp sharp details, modern color grading, sleek sophisticated look, contemporary style"
         }
         
-        prompt = style_prompts.get(style, "Transform this photo into a stylized artistic version")
+        prompt = style_prompts.get(style, "Generate a stylized artistic version of this photo")
         
-        # Use Gemini Pro Vision model
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        # Use Gemini 2.5 Flash with image generation
+        model = genai.GenerativeModel('gemini-2.5-flash-image-preview')
         
-        # Generate styled description
-        response = model.generate_content([
-            prompt + "\n\nProvide a detailed description of how this image would look with this style applied, focusing on colors, lighting, composition, and mood.",
-            image
-        ])
+        # Generate styled image
+        response = model.generate_content([prompt, image])
         
-        description = response.text
+        # Check if response contains an image
+        if response.parts:
+            for part in response.parts:
+                if hasattr(part, 'inline_data') and part.inline_data:
+                    # Get image data
+                    import base64
+                    image_data = part.inline_data.data
+                    processed_image = Image.open(io.BytesIO(image_data))
+                    return processed_image
         
-        # Since Gemini doesn't directly transform images, we'll return the original
-        # with a description overlay for now
-        # Note: For actual image transformation, you'd need Imagen API access
-        st.info(f"🎨 **Style Analysis**: {description}")
-        st.warning("Note: Full image transformation requires Imagen API. Currently showing analysis.")
+        # If no image in response, show text if available
+        if response.text:
+            st.info(f"🎨 **AI Response**: {response.text}")
         
+        st.warning("⚠️ No image was generated. The model may not support image output yet.")
         return image
         
     except Exception as e:
         st.error(f"❌ Error processing image: {str(e)}")
+        st.info("💡 Tip: Make sure your Google API key has access to Gemini 2.5 Flash image generation.")
         return None
 
 # App Header
@@ -138,17 +143,18 @@ if uploaded_file is not None:
             st.image(st.session_state.processed_image, use_container_width=True)
         else:
             st.subheader("✨ Processed")
-            st.info("👆 Click 'Analyze Style' to process your image")
+            st.info("👆 Click 'Apply Style' to process your image")
     
     st.markdown("")
     
     # Process button
-    if st.button("✨ Analyze Style", type="primary"):
-        with st.spinner(f"🎨 Analyzing {selected_style} style for your image..."):
+    if st.button("✨ Apply Style", type="primary"):
+        with st.spinner(f"🎨 Generating {selected_style} style with Nano Banana (Gemini 2.5)..."):
             processed = process_image_with_gemini(image, selected_style)
             if processed:
                 st.session_state.processed_image = processed
-                st.success("✅ Image analyzed successfully!")
+                st.success("✅ Image processed successfully!")
+                st.balloons()
     
     # Download section
     if st.session_state.processed_image is not None:
@@ -189,14 +195,14 @@ st.markdown(
 with st.sidebar:
     st.header("ℹ️ About")
     st.markdown("""
-    **Photo Style Converter** uses Google Gemini AI to analyze and describe photo styles.
+    **Photo Style Converter** uses Nano Banana (Gemini 2.5 Flash) to generate styled versions of your photos.
     
     **How to use:**
     1. Choose a style
     2. Upload your photo
-    3. Click 'Analyze Style'
-    4. Get AI style analysis
-    5. Download your photo
+    3. Click 'Apply Style'
+    4. Get AI-generated styled image
+    5. Download your result
     
     **Styles available:**
     - 🎯 Professional
@@ -214,5 +220,5 @@ with st.sidebar:
     
     ---
     
-    **Note:** This version uses Gemini for style analysis. For actual image transformation, Imagen API access is required.
+    **Powered by:** Google Gemini 2.5 Flash (Nano Banana)
     """)
