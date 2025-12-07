@@ -208,12 +208,23 @@ with col_upload:
 
 with col_style:
     st.subheader("2️⃣ Choose Style")
+    
+    # Detect style change and clear selections
+    if 'previous_style' not in st.session_state:
+        st.session_state.previous_style = None
+    
     selected_style = st.selectbox(
         "Select main style category:",
         options=list(STYLE_VARIATIONS.keys()),
         format_func=lambda x: x.title(),
         key="style_selector"
     )
+    
+    # Clear selections if style changed
+    if st.session_state.previous_style != selected_style:
+        st.session_state.selected_samples = []
+        st.session_state.generated_images = {}
+        st.session_state.previous_style = selected_style
     
     st.markdown("---")
     st.subheader("✨ Enhancement Options")
@@ -351,6 +362,10 @@ if st.session_state.original_image is not None:
                 
                 for idx, var_name in enumerate(st.session_state.selected_samples):
                     status_text.text(f"Regenerating {var_name}... ({idx+1}/{total})")
+                    
+                    # Make sure var_name exists in current variations
+                    if var_name not in variations:
+                        continue
                     
                     var_prompt = variations[var_name]
                     generated = generate_image_variation(
