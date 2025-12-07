@@ -111,7 +111,7 @@ def generate_image_variation(image, style_name, variation_prompt, enhancements=N
         if enhancements:
             enhancements_list = []
             if enhancements.get('hair'):
-                enhancements_list.append("full thick hair with no bald patches or thinning areas, natural hairline, voluminous healthy hair")
+                enhancements_list.append("subtle hair enhancement, slightly fill in any thinning areas naturally, maintain original hairstyle and volume, keep it realistic and close to original appearance")
             if enhancements.get('skin'):
                 enhancements_list.append("smooth flawless skin, reduced wrinkles and fine lines, even skin tone, no blemishes or imperfections")
             if enhancements.get('teeth'):
@@ -126,7 +126,7 @@ def generate_image_variation(image, style_name, variation_prompt, enhancements=N
             if enhancements_list:
                 enhancement_text = f" IMPORTANT ENHANCEMENTS: {', '.join(enhancements_list)}."
         
-        prompt = f"Transform this photo into: {variation_prompt}.{enhancement_text} Generate a high-quality transformed image with all requested enhancements applied naturally and realistically."
+        prompt = f"Transform this photo into: {variation_prompt}.{enhancement_text} IMPORTANT: Keep all enhancements subtle and natural. The result should look very close to the original photo, just enhanced and polished. Do not make dramatic changes to hair, face structure, or overall appearance. Generate a high-quality transformed image with all requested enhancements applied naturally and realistically."
         
         # Use the correct method: client.generate_content
         response = client.generate_content([prompt, image])
@@ -206,7 +206,7 @@ with col_style:
     
     # Enhancement checkboxes
     enhancements = {}
-    enhancements['hair'] = st.checkbox("💇 Hair Enhancement (cover bald patches, fuller hair)", value=False)
+    enhancements['hair'] = st.checkbox("💇 Subtle Hair Enhancement (natural fill-in)", value=False)
     enhancements['skin'] = st.checkbox("✨ Skin Smoothing (reduce wrinkles, blemishes)", value=False)
     enhancements['teeth'] = st.checkbox("😁 Teeth Whitening", value=False)
     enhancements['eyes'] = st.checkbox("👁️ Eye Enhancement (brighter, sharper)", value=False)
