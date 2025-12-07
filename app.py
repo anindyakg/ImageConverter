@@ -93,7 +93,7 @@ STYLE_VARIATIONS = {
 
 def generate_image_variation(image, style_name, variation_prompt):
     """
-    Generate a specific style variation using Gemini
+    Generate a specific style variation using Gemini 2.5 Flash Image (Nano Banana)
     """
     api_key = os.getenv("GOOGLE_API_KEY") or st.secrets.get("GOOGLE_API_KEY", None)
     
@@ -102,15 +102,29 @@ def generate_image_variation(image, style_name, variation_prompt):
         return None
     
     try:
+        # Configure client
         genai.configure(api_key=api_key)
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        client = genai.GenerativeModel('gemini-2.5-flash-image-preview')
         
-        prompt = f"Transform this photo into: {variation_prompt}. Describe the transformation in vivid detail."
+        prompt = f"Transform this photo into: {variation_prompt}. Generate the transformed image."
         
-        response = model.generate_content([prompt, image])
+        # Use the correct method: client.models.generate_content
+        response = client.generate_content([prompt, image])
         
-        # For now, return original (free tier limitation)
-        # In paid tier, this would return actual transformed image
+        # Check for image in response
+        if response.parts:
+            for part in response.parts:
+                if hasattr(part, 'inline_data') and part.inline_data:
+                    import base64
+                    image_data = part.inline_data.data
+                    processed_image = Image.open(io.BytesIO(image_data))
+                    return processed_image
+        
+        # If text response, show it
+        if response.text:
+            st.caption(f"AI: {response.text[:200]}...")
+        
+        # Return original for now (free tier may not generate images)
         return image
         
     except Exception as e:
