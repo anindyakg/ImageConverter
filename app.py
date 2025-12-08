@@ -1,20 +1,22 @@
 import streamlit as st
 import google.generativeai as genai
-from PIL import Image
+from PIL import Image, ImageEnhance, ImageFilter
 import io
 import os
 import zipfile
 from datetime import datetime
+import numpy as np
+from PIL import ImageOps
 
 # Page config
 st.set_page_config(
-    page_title="Photo Style Converter",
+    page_title="Photo Style Converter Pro",
     page_icon="📸",
     layout="wide",
-    initial_sidebar_state="collapsed"
+    initial_sidebar_state="expanded"
 )
 
-# Custom CSS for mobile-friendly design
+# Custom CSS
 st.markdown("""
     <style>
     .stButton>button {
@@ -29,35 +31,33 @@ st.markdown("""
     .stButton>button:hover {
         background-color: #6d28d9;
     }
-    .sample-card {
-        border: 2px solid #e5e7eb;
-        border-radius: 8px;
-        padding: 12px;
-        margin: 8px 0;
-        transition: all 0.3s;
-    }
-    .sample-card:hover {
-        border-color: #7c3aed;
-        box-shadow: 0 4px 6px rgba(124, 58, 237, 0.1);
-    }
-    .sample-card.selected {
-        border-color: #7c3aed;
-        background-color: #f5f3ff;
+    .feature-card {
+        background: white;
+        padding: 20px;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        margin: 10px 0;
     }
     </style>
 """, unsafe_allow_html=True)
 
 # Initialize session state
-if 'original_image' not in st.session_state:
-    st.session_state.original_image = None
+if 'original_images' not in st.session_state:
+    st.session_state.original_images = []
+if 'edited_images' not in st.session_state:
+    st.session_state.edited_images = []
+if 'current_adjustments' not in st.session_state:
+    st.session_state.current_adjustments = {}
 if 'sample_variations' not in st.session_state:
     st.session_state.sample_variations = {}
 if 'selected_samples' not in st.session_state:
     st.session_state.selected_samples = []
 if 'generated_images' not in st.session_state:
     st.session_state.generated_images = {}
+if 'previous_style' not in st.session_state:
+    st.session_state.previous_style = None
 
-# Style variations - 4 options per style
+# Style variations
 STYLE_VARIATIONS = {
     "professional": {
         "Corporate Executive": "professional corporate executive headshot framed from head to chest level, dark suit, confident expression, modern office background, studio lighting, sharp focus, professional portrait crop",
@@ -91,10 +91,93 @@ STYLE_VARIATIONS = {
     }
 }
 
+# Preset crop ratios
+CROP_PRESETS = {
+    "Instagram Square": (1, 1),
+    "Instagram Portrait": (4, 5),
+    "Facebook Cover": (16, 9),
+    "Passport Photo": (35, 45),
+    "LinkedIn Banner": (4, 1),
+    "Original": None
+}
+
+def apply_basic_adjustments(image, brightness=1.0, contrast=1.0, saturation=1.0, sharpness=1.0):
+    """Apply basic photo adjustments"""
+    if brightness != 1.0:
+        enhancer = ImageEnhance.Brightness(image)
+        image = enhancer.enhance(brightness)
+    
+    if contrast != 1.0:
+        enhancer = ImageEnhance.Contrast(image)
+        image = enhancer.enhance(contrast)
+    
+    if saturation != 1.0:
+        enhancer = ImageEnhance.Color(image)
+        image = enhancer.enhance(saturation)
+    
+    if sharpness != 1.0:
+        enhancer = ImageEnhance.Sharpness(image)
+        image = enhancer.enhance(sharpness)
+    
+    return image
+
+def apply_noise_reduction(image, strength=1):
+    """Apply noise reduction filter"""
+    for _ in range(strength):
+        image = image.filter(ImageFilter.MedianFilter(size=3))
+    return image
+
+def crop_image(image, ratio):
+    """Crop image to specified ratio"""
+    if ratio is None:
+        return image
+    
+    width, height = image.size
+    target_ratio = ratio[0] / ratio[1]
+    current_ratio = width / height
+    
+    if current_ratio > target_ratio:
+        new_width = int(height * target_ratio)
+        left = (width - new_width) // 2
+        image = image.crop((left, 0, left + new_width, height))
+    else:
+        new_height = int(width / target_ratio)
+        top = (height - new_height) // 2
+        image = image.crop((0, top, width, top + new_height))
+    
+    return image
+
+def resize_image(image, scale_percent):
+    """Resize image by percentage"""
+    if scale_percent == 100:
+        return image
+    
+    width, height = image.size
+    new_width = int(width * scale_percent / 100)
+    new_height = int(height * scale_percent / 100)
+    return image.resize((new_width, new_height), Image.Resampling.LANCZOS)
+
+def rotate_image(image, angle):
+    """Rotate image by angle"""
+    if angle == 0:
+        return image
+    return image.rotate(-angle, expand=True, fillcolor='white')
+
+def remove_background_simple(image):
+    """Simple background removal (placeholder - in production use rembg library)"""
+    # This is a placeholder. In production, use: from rembg import remove
+    # return remove(image)
+    st.info("💡 Background removal requires 'rembg' library. Install with: pip install rembg")
+    return image
+
+def upscale_image(image, factor=2):
+    """Simple upscaling (placeholder - in production use AI upscaler)"""
+    width, height = image.size
+    new_size = (width * factor, height * factor)
+    return image.resize(new_size, Image.Resampling.LANCZOS)
+
 def generate_image_variation(image, style_name, variation_prompt, enhancements=None):
-    """
-    Generate a specific style variation using Gemini 2.5 Flash Image (Nano Banana)
-    """
+    """Generate style variation using Gemini 2.5 Flash"""
     api_key = os.getenv("GOOGLE_API_KEY") or st.secrets.get("GOOGLE_API_KEY", None)
     
     if not api_key:
@@ -102,11 +185,9 @@ def generate_image_variation(image, style_name, variation_prompt, enhancements=N
         return None
     
     try:
-        # Configure client
         genai.configure(api_key=api_key)
-        client = genai.GenerativeModel('gemini-2.5-flash-image-preview')
+        client = genai.GenerativeModel('gemini-2.0-flash-exp')
         
-        # Build enhancement text
         enhancement_text = ""
         if enhancements:
             enhancements_list = []
@@ -126,17 +207,14 @@ def generate_image_variation(image, style_name, variation_prompt, enhancements=N
             if enhancements_list:
                 enhancement_text = f" IMPORTANT ENHANCEMENTS: {', '.join(enhancements_list)}."
         
-        # Add framing instruction for professional style
         framing_text = ""
         if style_name == "professional":
             framing_text = " CRITICAL FRAMING: Image must be framed from head to chest level only (professional headshot crop). Do not show full body. Proper portrait framing with shoulders and upper chest visible."
         
         prompt = f"Transform this photo into: {variation_prompt}.{framing_text}{enhancement_text} IMPORTANT: Keep all enhancements subtle and natural. The result should look very close to the original photo, just enhanced and polished. Do not make dramatic changes to hair, face structure, or overall appearance. Generate a high-quality transformed image with all requested enhancements applied naturally and realistically."
         
-        # Use the correct method: client.generate_content
         response = client.generate_content([prompt, image])
         
-        # Check for image in response
         if response.parts:
             for part in response.parts:
                 if hasattr(part, 'inline_data') and part.inline_data:
@@ -145,11 +223,9 @@ def generate_image_variation(image, style_name, variation_prompt, enhancements=N
                     processed_image = Image.open(io.BytesIO(image_data))
                     return processed_image
         
-        # If text response, show it
         if response.text:
             st.caption(f"AI: {response.text[:200]}...")
         
-        # Return original for now (free tier may not generate images)
         return image
         
     except Exception as e:
@@ -157,9 +233,7 @@ def generate_image_variation(image, style_name, variation_prompt, enhancements=N
         return None
 
 def create_zip_file(images_dict):
-    """
-    Create a zip file containing all selected images
-    """
+    """Create ZIP file with all images"""
     zip_buffer = io.BytesIO()
     
     with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
@@ -168,247 +242,330 @@ def create_zip_file(images_dict):
             image.save(img_buffer, format='JPEG', quality=95)
             img_buffer.seek(0)
             
-            # Add image to zip with descriptive filename
             safe_name = name.replace(' ', '_').replace('/', '_')
             zip_file.writestr(f"{safe_name}.jpg", img_buffer.getvalue())
     
     zip_buffer.seek(0)
     return zip_buffer
 
-# App Header
+# Header
 col_header1, col_header2 = st.columns([3, 1])
 
 with col_header1:
-    st.title("📸 Photo Style Converter")
-    st.markdown("Transform your photos with AI-powered styles - Select multiple variations!")
+    st.title("📸 PhotoStyle Pro")
+    st.markdown("Professional Photo Editor & AI Style Converter")
 
 with col_header2:
-    st.markdown("")  # Spacing
+    st.markdown("")
     if st.button("🔄 Start Over", type="secondary", use_container_width=True):
         st.session_state.clear()
         st.rerun()
 
 st.markdown("---")
 
-# Main layout
-col_upload, col_style = st.columns([1, 1])
+# Main tabs
+tab1, tab2, tab3 = st.tabs(["📤 Upload & Edit", "🎨 Style Conversion", "📥 Download"])
 
-with col_upload:
-    st.subheader("1️⃣ Upload Photo")
-    uploaded_file = st.file_uploader(
-        "Choose your photo",
+# TAB 1: Upload & Edit
+with tab1:
+    st.header("Step 1: Upload and Edit Photos")
+    
+    # Batch upload
+    uploaded_files = st.file_uploader(
+        "Upload one or multiple photos",
         type=['png', 'jpg', 'jpeg'],
-        help="Supported formats: PNG, JPG, JPEG"
+        accept_multiple_files=True,
+        help="Upload multiple images for batch processing"
     )
     
-    if uploaded_file is not None:
-        image = Image.open(uploaded_file)
-        st.session_state.original_image = image
-        st.image(image, caption="Original Photo", use_container_width=True)
-
-with col_style:
-    st.subheader("2️⃣ Choose Style")
-    
-    # Detect style change and clear selections
-    if 'previous_style' not in st.session_state:
-        st.session_state.previous_style = None
-    
-    selected_style = st.selectbox(
-        "Select main style category:",
-        options=list(STYLE_VARIATIONS.keys()),
-        format_func=lambda x: x.title(),
-        key="style_selector"
-    )
-    
-    # Clear selections if style changed
-    if st.session_state.previous_style != selected_style:
-        st.session_state.selected_samples = []
-        st.session_state.generated_images = {}
-        st.session_state.previous_style = selected_style
-    
-    st.markdown("---")
-    st.subheader("✨ Enhancement Options")
-    st.caption("Select enhancements to apply to all variations")
-    
-    # Enhancement checkboxes
-    enhancements = {}
-    enhancements['hair'] = st.checkbox("💇 Subtle Hair Enhancement (natural fill-in)", value=False)
-    enhancements['skin'] = st.checkbox("✨ Skin Smoothing (reduce wrinkles, blemishes)", value=False)
-    enhancements['teeth'] = st.checkbox("😁 Teeth Whitening", value=False)
-    enhancements['eyes'] = st.checkbox("👁️ Eye Enhancement (brighter, sharper)", value=False)
-    enhancements['lighting'] = st.checkbox("💡 Professional Lighting", value=True)
-    enhancements['sharpness'] = st.checkbox("🔍 Enhanced Sharpness & Clarity", value=True)
-    
-    st.session_state.enhancements = enhancements
-
-# Show variations if image is uploaded
-if st.session_state.original_image is not None:
-    st.markdown("---")
-    st.subheader(f"3️⃣ Select Variations for '{selected_style.title()}' Style")
-    st.markdown("*Choose one or more variations to generate*")
-    
-    # Display 4 variation options
-    variations = STYLE_VARIATIONS[selected_style]
-    
-    cols = st.columns(2)
-    
-    for idx, (var_name, var_prompt) in enumerate(variations.items()):
-        with cols[idx % 2]:
-            is_selected = var_name in st.session_state.selected_samples
-            
-            with st.container():
-                st.markdown(f"**{var_name}**")
-                st.caption(var_prompt[:80] + "...")
-                
-                if st.checkbox(
-                    f"Select {var_name}",
-                    key=f"checkbox_{var_name}",
-                    value=is_selected
-                ):
-                    if var_name not in st.session_state.selected_samples:
-                        st.session_state.selected_samples.append(var_name)
-                else:
-                    if var_name in st.session_state.selected_samples:
-                        st.session_state.selected_samples.remove(var_name)
-    
-    st.markdown("---")
-    
-    # Generate button
-    if len(st.session_state.selected_samples) > 0:
-        st.info(f"✅ {len(st.session_state.selected_samples)} variation(s) selected")
+    if uploaded_files:
+        st.session_state.original_images = [Image.open(f) for f in uploaded_files]
         
-        if st.button("🎨 Generate Selected Variations", type="primary", use_container_width=True):
-            st.session_state.generated_images = {}
-            
-            # Show selected enhancements
-            active_enhancements = [k for k, v in st.session_state.enhancements.items() if v]
-            if active_enhancements:
-                enhancement_names = {
-                    'hair': 'Hair Enhancement',
-                    'skin': 'Skin Smoothing', 
-                    'teeth': 'Teeth Whitening',
-                    'eyes': 'Eye Enhancement',
-                    'lighting': 'Professional Lighting',
-                    'sharpness': 'Enhanced Sharpness'
-                }
-                active_names = [enhancement_names[e] for e in active_enhancements]
-                st.info(f"✨ Applying enhancements: {', '.join(active_names)}")
-            
-            progress_bar = st.progress(0)
-            status_text = st.empty()
-            
-            total = len(st.session_state.selected_samples)
-            
-            for idx, var_name in enumerate(st.session_state.selected_samples):
-                status_text.text(f"Generating {var_name}... ({idx+1}/{total})")
-                
-                var_prompt = variations[var_name]
-                generated = generate_image_variation(
-                    st.session_state.original_image,
-                    selected_style,
-                    var_prompt,
-                    st.session_state.enhancements
-                )
-                
-                if generated:
-                    st.session_state.generated_images[var_name] = generated
-                
-                progress_bar.progress((idx + 1) / total)
-            
-            status_text.empty()
-            progress_bar.empty()
-            st.success(f"✅ Generated {len(st.session_state.generated_images)} variations!")
-            st.balloons()
-    else:
-        st.warning("⚠️ Please select at least one variation to generate")
-    
-    # Display generated images
-    if st.session_state.generated_images:
-        st.markdown("---")
-        st.subheader("4️⃣ Generated Images")
+        if not st.session_state.edited_images:
+            st.session_state.edited_images = st.session_state.original_images.copy()
         
-        # Display in grid
-        cols = st.columns(2)
-        for idx, (name, img) in enumerate(st.session_state.generated_images.items()):
-            with cols[idx % 2]:
-                st.image(img, caption=name, use_container_width=True)
+        st.success(f"✅ {len(uploaded_files)} image(s) uploaded")
         
-        st.markdown("---")
+        # Image selector for editing
+        if len(st.session_state.original_images) > 1:
+            selected_idx = st.selectbox(
+                "Select image to edit:",
+                range(len(st.session_state.original_images)),
+                format_func=lambda x: f"Image {x+1}"
+            )
+        else:
+            selected_idx = 0
         
-        # Regenerate button
-        col_regen1, col_regen2 = st.columns([2, 1])
-        with col_regen2:
-            if st.button("🔄 Not Satisfied - Regenerate", type="secondary", use_container_width=True):
-                st.session_state.generated_images = {}
-                
-                # Show selected enhancements
-                active_enhancements = [k for k, v in st.session_state.enhancements.items() if v]
-                if active_enhancements:
-                    enhancement_names = {
-                        'hair': 'Hair Enhancement',
-                        'skin': 'Skin Smoothing', 
-                        'teeth': 'Teeth Whitening',
-                        'eyes': 'Eye Enhancement',
-                        'lighting': 'Professional Lighting',
-                        'sharpness': 'Enhanced Sharpness'
-                    }
-                    active_names = [enhancement_names[e] for e in active_enhancements]
-                    st.info(f"✨ Applying enhancements: {', '.join(active_names)}")
-                
-                progress_bar = st.progress(0)
-                status_text = st.empty()
-                
-                total = len(st.session_state.selected_samples)
-                
-                for idx, var_name in enumerate(st.session_state.selected_samples):
-                    status_text.text(f"Regenerating {var_name}... ({idx+1}/{total})")
-                    
-                    # Make sure var_name exists in current variations
-                    if var_name not in variations:
-                        continue
-                    
-                    var_prompt = variations[var_name]
-                    generated = generate_image_variation(
-                        st.session_state.original_image,
-                        selected_style,
-                        var_prompt,
-                        st.session_state.enhancements
-                    )
-                    
-                    if generated:
-                        st.session_state.generated_images[var_name] = generated
-                    
-                    progress_bar.progress((idx + 1) / total)
-                
-                status_text.empty()
-                progress_bar.empty()
-                st.success(f"✅ Regenerated {len(st.session_state.generated_images)} variations!")
-                st.rerun()
+        current_image = st.session_state.edited_images[selected_idx]
         
-        st.markdown("---")
-        
-        # Download options
-        col1, col2 = st.columns(2)
+        col1, col2 = st.columns([1, 2])
         
         with col1:
-            # Download as ZIP
+            st.subheader("Original")
+            st.image(st.session_state.original_images[selected_idx], use_container_width=True)
+        
+        with col2:
+            st.subheader("Edited Preview")
+            preview_placeholder = st.empty()
+            preview_placeholder.image(current_image, use_container_width=True)
+        
+        st.markdown("---")
+        
+        # Editing tools in expandable sections
+        with st.expander("⚙️ Basic Adjustments", expanded=True):
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                brightness = st.slider("💡 Brightness", 0.5, 2.0, 1.0, 0.1, key=f"bright_{selected_idx}")
+                contrast = st.slider("🎭 Contrast", 0.5, 2.0, 1.0, 0.1, key=f"contrast_{selected_idx}")
+            
+            with col2:
+                saturation = st.slider("🌈 Saturation", 0.0, 2.0, 1.0, 0.1, key=f"sat_{selected_idx}")
+                sharpness = st.slider("🔪 Sharpness", 0.0, 3.0, 1.0, 0.1, key=f"sharp_{selected_idx}")
+            
+            with col3:
+                if st.button("Apply Adjustments", key=f"apply_basic_{selected_idx}"):
+                    edited = apply_basic_adjustments(
+                        st.session_state.original_images[selected_idx],
+                        brightness, contrast, saturation, sharpness
+                    )
+                    st.session_state.edited_images[selected_idx] = edited
+                    preview_placeholder.image(edited, use_container_width=True)
+                    st.success("✅ Applied!")
+        
+        with st.expander("✂️ Crop, Rotate & Resize"):
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                crop_preset = st.selectbox("Crop Preset", list(CROP_PRESETS.keys()), key=f"crop_{selected_idx}")
+                rotate_angle = st.slider("Rotate (degrees)", -180, 180, 0, 15, key=f"rotate_{selected_idx}")
+            
+            with col2:
+                resize_percent = st.slider("Resize (%)", 25, 200, 100, 5, key=f"resize_{selected_idx}")
+            
+            with col3:
+                if st.button("Apply Transform", key=f"apply_transform_{selected_idx}"):
+                    edited = st.session_state.original_images[selected_idx].copy()
+                    
+                    # Apply crop
+                    if crop_preset != "Original":
+                        edited = crop_image(edited, CROP_PRESETS[crop_preset])
+                    
+                    # Apply rotation
+                    if rotate_angle != 0:
+                        edited = rotate_image(edited, rotate_angle)
+                    
+                    # Apply resize
+                    if resize_percent != 100:
+                        edited = resize_image(edited, resize_percent)
+                    
+                    st.session_state.edited_images[selected_idx] = edited
+                    preview_placeholder.image(edited, use_container_width=True)
+                    st.success("✅ Transformed!")
+        
+        with st.expander("🧹 Noise Reduction & Enhancement"):
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                noise_strength = st.slider("Noise Reduction", 0, 3, 0, key=f"noise_{selected_idx}")
+                
+                if st.button("Remove Background", key=f"rembg_{selected_idx}"):
+                    edited = remove_background_simple(st.session_state.edited_images[selected_idx])
+                    st.session_state.edited_images[selected_idx] = edited
+                    preview_placeholder.image(edited, use_container_width=True)
+            
+            with col2:
+                upscale_factor = st.radio("Upscale Resolution", [1, 2, 4], key=f"upscale_{selected_idx}")
+                
+                if st.button("Apply Enhancement", key=f"enhance_{selected_idx}"):
+                    edited = st.session_state.edited_images[selected_idx].copy()
+                    
+                    if noise_strength > 0:
+                        edited = apply_noise_reduction(edited, noise_strength)
+                    
+                    if upscale_factor > 1:
+                        edited = upscale_image(edited, upscale_factor)
+                    
+                    st.session_state.edited_images[selected_idx] = edited
+                    preview_placeholder.image(edited, use_container_width=True)
+                    st.success("✅ Enhanced!")
+        
+        # Batch apply
+        if len(st.session_state.original_images) > 1:
+            st.markdown("---")
+            if st.button("🔄 Apply Current Settings to All Images", type="primary"):
+                with st.spinner("Processing all images..."):
+                    for i in range(len(st.session_state.original_images)):
+                        edited = apply_basic_adjustments(
+                            st.session_state.original_images[i],
+                            brightness, contrast, saturation, sharpness
+                        )
+                        st.session_state.edited_images[i] = edited
+                    st.success(f"✅ Applied to all {len(st.session_state.original_images)} images!")
+                    st.rerun()
+
+# TAB 2: Style Conversion
+with tab2:
+    if not st.session_state.edited_images:
+        st.info("👈 Please upload images in the 'Upload & Edit' tab first")
+    else:
+        st.header("Step 2: AI Style Conversion")
+        
+        col_style1, col_style2 = st.columns([1, 2])
+        
+        with col_style1:
+            # Style selection
+            selected_style = st.selectbox(
+                "Choose Style Category:",
+                options=list(STYLE_VARIATIONS.keys()),
+                format_func=lambda x: x.title(),
+                key="style_selector"
+            )
+            
+            # Clear selections if style changed
+            if st.session_state.previous_style != selected_style:
+                st.session_state.selected_samples = []
+                st.session_state.generated_images = {}
+                st.session_state.previous_style = selected_style
+            
+            # Enhancements
+            st.markdown("### ✨ Enhancements")
+            enhancements = {}
+            enhancements['hair'] = st.checkbox("💇 Subtle Hair Enhancement", value=False)
+            enhancements['skin'] = st.checkbox("✨ Skin Smoothing", value=False)
+            enhancements['teeth'] = st.checkbox("😁 Teeth Whitening", value=False)
+            enhancements['eyes'] = st.checkbox("👁️ Eye Enhancement", value=False)
+            enhancements['lighting'] = st.checkbox("💡 Professional Lighting", value=True)
+            enhancements['sharpness'] = st.checkbox("🔍 Enhanced Sharpness", value=True)
+            
+            st.session_state.enhancements = enhancements
+        
+        with col_style2:
+            st.markdown("### Select Variations")
+            variations = STYLE_VARIATIONS[selected_style]
+            
+            cols = st.columns(2)
+            for idx, (var_name, var_prompt) in enumerate(variations.items()):
+                with cols[idx % 2]:
+                    is_selected = var_name in st.session_state.selected_samples
+                    
+                    with st.container():
+                        st.markdown(f"**{var_name}**")
+                        st.caption(var_prompt[:80] + "...")
+                        
+                        if st.checkbox(
+                            f"Select {var_name}",
+                            key=f"checkbox_{var_name}",
+                            value=is_selected
+                        ):
+                            if var_name not in st.session_state.selected_samples:
+                                st.session_state.selected_samples.append(var_name)
+                        else:
+                            if var_name in st.session_state.selected_samples:
+                                st.session_state.selected_samples.remove(var_name)
+            
+            if len(st.session_state.selected_samples) > 0:
+                st.info(f"✅ {len(st.session_state.selected_samples)} variation(s) selected")
+                
+                if st.button("🎨 Generate Selected Variations", type="primary", use_container_width=True):
+                    st.session_state.generated_images = {}
+                    
+                    progress_bar = st.progress(0)
+                    status_text = st.empty()
+                    
+                    total = len(st.session_state.selected_samples) * len(st.session_state.edited_images)
+                    count = 0
+                    
+                    for img_idx, image in enumerate(st.session_state.edited_images):
+                        for var_name in st.session_state.selected_samples:
+                            status_text.text(f"Generating {var_name} for Image {img_idx+1}... ({count+1}/{total})")
+                            
+                            if var_name not in variations:
+                                continue
+                            
+                            var_prompt = variations[var_name]
+                            generated = generate_image_variation(
+                                image,
+                                selected_style,
+                                var_prompt,
+                                st.session_state.enhancements
+                            )
+                            
+                            if generated:
+                                key = f"img{img_idx+1}_{var_name}"
+                                st.session_state.generated_images[key] = generated
+                            
+                            count += 1
+                            progress_bar.progress(count / total)
+                    
+                    status_text.empty()
+                    progress_bar.empty()
+                    st.success(f"✅ Generated {len(st.session_state.generated_images)} variations!")
+                    st.balloons()
+            else:
+                st.warning("⚠️ Please select at least one variation")
+        
+        # Display generated images
+        if st.session_state.generated_images:
+            st.markdown("---")
+            st.subheader("Generated Images")
+            
+            cols = st.columns(3)
+            for idx, (name, img) in enumerate(st.session_state.generated_images.items()):
+                with cols[idx % 3]:
+                    st.image(img, caption=name, use_container_width=True)
+            
+            col1, col2 = st.columns(2)
+            with col2:
+                if st.button("🔄 Not Satisfied - Regenerate", type="secondary", use_container_width=True):
+                    st.rerun()
+
+# TAB 3: Download
+with tab3:
+    st.header("Step 3: Download Your Images")
+    
+    if st.session_state.edited_images:
+        st.subheader("📷 Edited Photos")
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            # Download edited images as ZIP
+            edited_dict = {f"edited_image_{i+1}": img for i, img in enumerate(st.session_state.edited_images)}
+            zip_data = create_zip_file(edited_dict)
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            
+            st.download_button(
+                label=f"📦 Download All Edited Photos ({len(st.session_state.edited_images)} images)",
+                data=zip_data,
+                file_name=f"edited_photos_{timestamp}.zip",
+                mime="application/zip",
+                use_container_width=True
+            )
+    
+    if st.session_state.generated_images:
+        st.markdown("---")
+        st.subheader("🎨 AI Styled Photos")
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            # Download all styled images as ZIP
             zip_data = create_zip_file(st.session_state.generated_images)
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             
             st.download_button(
-                label=f"📦 Download All as ZIP ({len(st.session_state.generated_images)} images)",
+                label=f"📦 Download All Styled Photos ({len(st.session_state.generated_images)} images)",
                 data=zip_data,
-                file_name=f"styled_photos_{selected_style}_{timestamp}.zip",
+                file_name=f"styled_photos_{timestamp}.zip",
                 mime="application/zip",
                 use_container_width=True
             )
         
         with col2:
-            # Individual downloads
+            # Show individual downloads toggle
             if st.button("📥 Show Individual Downloads", use_container_width=True):
                 st.session_state.show_individual = True
         
-        # Show individual download buttons if requested
+        # Individual downloads
         if st.session_state.get('show_individual', False):
             st.markdown("#### Individual Downloads")
             for name, img in st.session_state.generated_images.items():
@@ -424,9 +581,51 @@ if st.session_state.original_image is not None:
                     mime="image/jpeg",
                     key=f"download_{name}"
                 )
+    
+    if not st.session_state.edited_images and not st.session_state.generated_images:
+        st.info("👈 Upload and edit images first to enable downloads")
 
-else:
-    st.info("👆 Upload a photo to get started!")
+# Sidebar
+with st.sidebar:
+    st.header("ℹ️ PhotoStyle Pro")
+    st.markdown("""
+    ### Features:
+    
+    **Photo Editing:**
+    - ✅ Batch upload & processing
+    - ✅ Brightness, contrast, saturation
+    - ✅ Crop with presets (Instagram, LinkedIn, etc.)
+    - ✅ Rotate & resize
+    - ✅ Noise reduction
+    - ✅ Background removal*
+    - ✅ AI upscaling
+    
+    **AI Style Conversion:**
+    - ✅ 5 style categories
+    - ✅ 4 variations per style
+    - ✅ Professional enhancements
+    - ✅ Head-to-chest crop for professional
+    
+    **Download Options:**
+    - ✅ Bulk ZIP download
+    - ✅ Individual image download
+    
+    ---
+    
+    **Privacy:** No images stored on servers
+    
+    **Powered by:** Google Gemini 2.5 Flash
+    
+    ---
+    
+    *Background removal requires `rembg` library
+    """)
+    
+    st.markdown("---")
+    
+    if st.button("🔄 Reset Everything", use_container_width=True, type="primary"):
+        st.session_state.clear()
+        st.rerun()
 
 # Footer
 st.markdown("---")
@@ -436,47 +635,3 @@ st.markdown(
     "</p>",
     unsafe_allow_html=True
 )
-
-# Sidebar
-with st.sidebar:
-    st.header("ℹ️ How It Works")
-    st.markdown("""
-    1. **Upload** your photo
-    2. **Choose** a style category
-    3. **Select enhancements** (optional)
-       - Hair enhancement
-       - Skin smoothing
-       - Teeth whitening
-       - Eye enhancement
-       - Professional lighting
-       - Enhanced sharpness
-    4. **Select** one or more variations
-    5. **Generate** styled images
-    6. **Download** as ZIP or individually
-    
-    ---
-    
-    **Professional Style:**
-    - All images cropped head to chest
-    - Perfect for LinkedIn, resumes, business cards
-    
-    ---
-    
-    **Features:**
-    - ✅ Multiple variations per style
-    - ✅ Professional enhancements
-    - ✅ AI-powered transformations
-    - ✅ Bulk ZIP download
-    - ✅ Individual downloads
-    - ✅ No storage, real-time processing
-    
-    ---
-    
-    **Powered by:** Google Gemini 2.5 Flash (Nano Banana)
-    """)
-    
-    st.markdown("---")
-    
-    if st.button("🔄 Reset Everything", use_container_width=True, type="primary"):
-        st.session_state.clear()
-        st.rerun()
