@@ -58,6 +58,8 @@ if 'generated_images' not in st.session_state:
     st.session_state.generated_images = {}
 if 'previous_style' not in st.session_state:
     st.session_state.previous_style = None
+if 'custom_background' not in st.session_state:
+    st.session_state.custom_background = None
 
 # Style variations
 STYLE_VARIATIONS = {
@@ -165,13 +167,21 @@ def rotate_image(image, angle):
         return image
     return image.rotate(-angle, expand=True, fillcolor='white')
 
+def check_rembg_available():
+    """Check if rembg is installed"""
+    try:
+        import rembg
+        return True
+    except ImportError:
+        return False
+
 def remove_background_simple(image):
     """Background removal using rembg library"""
     try:
         from rembg import remove
         return remove(image)
     except ImportError:
-        st.warning("💡 Background removal requires 'rembg' library. To enable this feature, install it with: pip install rembg")
+        st.warning("💡 Background removal requires 'rembg' library.")
         return image
     except Exception as e:
         st.error(f"Background removal error: {str(e)}")
@@ -183,7 +193,7 @@ def upscale_image(image, factor=2):
     new_size = (width * factor, height * factor)
     return image.resize(new_size, Image.Resampling.LANCZOS)
 
-def generate_image_variation(image, style_name, variation_prompt, enhancements=None):
+def generate_image_variation(image, style_name, variation_prompt, enhancements=None, custom_background=None):
     """Generate style variation using Gemini 2.5 Flash Image (Nano Banana)"""
     api_key = os.getenv("GOOGLE_API_KEY") or st.secrets.get("GOOGLE_API_KEY", None)
     
@@ -218,13 +228,27 @@ def generate_image_variation(image, style_name, variation_prompt, enhancements=N
         if style_name == "professional":
             framing_text = " CRITICAL FRAMING: Image must be framed from head to chest level only (professional headshot crop). Do not show full body. Proper portrait framing with shoulders and upper chest visible."
         
-        prompt = f"Edit and transform this photo: {variation_prompt}.{framing_text}{enhancement_text} IMPORTANT: Keep all enhancements subtle and natural. The result should look very close to the original photo, just enhanced and polished with the specified style applied. Do not make dramatic changes. Generate a high-quality transformed image."
-        
-        # Create model instance
-        model = genai.GenerativeModel('gemini-2.5-flash-image-preview')
-        
-        # Generate content
-        response = model.generate_content([prompt, image])
+        # Custom background handling
+        background_text = ""
+        if custom_background is not None:
+            background_text = " CUSTOM BACKGROUND: Replace the background with the style and setting from the provided custom background image. Keep the person/subject from the original photo but place them in the new background environment. Blend naturally and maintain proper lighting and perspective."
+            
+            # Create prompt with custom background
+            prompt = f"Edit and transform this photo: {variation_prompt}.{framing_text}{enhancement_text}{background_text} IMPORTANT: Keep the subject from the first image but replace the background with the environment from the second image. Keep all enhancements subtle and natural. Generate a high-quality transformed image."
+            
+            # Create model instance
+            model = genai.GenerativeModel('gemini-2.5-flash-image-preview')
+            
+            # Generate content with both images
+            response = model.generate_content([prompt, image, "Custom background reference:", custom_background])
+        else:
+            prompt = f"Edit and transform this photo: {variation_prompt}.{framing_text}{enhancement_text} IMPORTANT: Keep all enhancements subtle and natural. The result should look very close to the original photo, just enhanced and polished with the specified style applied. Do not make dramatic changes. Generate a high-quality transformed image."
+            
+            # Create model instance
+            model = genai.GenerativeModel('gemini-2.5-flash-image-preview')
+            
+            # Generate content
+            response = model.generate_content([prompt, image])
         
         # Check for generated image in response
         if hasattr(response, 'parts') and response.parts:
@@ -463,11 +487,15 @@ with tab1:
                     preview_placeholder.image(temp_edited, use_container_width=True)
                     st.success("✅ Enhanced!")
                 
-                if st.button("🖼️ Remove Background", key=f"rembg_{selected_idx}"):
-                    temp_edited = remove_background_simple(st.session_state.working_images[selected_idx])
-                    st.session_state.working_images[selected_idx] = temp_edited
-                    st.session_state.edited_images[selected_idx] = temp_edited
-                    preview_placeholder.image(temp_edited, use_container_width=True)
+                # Only show background removal if rembg is available
+                if check_rembg_available():
+                    if st.button("🖼️ Remove Background", key=f"rembg_{selected_idx}"):
+                        temp_edited = remove_background_simple(st.session_state.working_images[selected_idx])
+                        st.session_state.working_images[selected_idx] = temp_edited
+                        st.session_state.edited_images[selected_idx] = temp_edited
+                        preview_placeholder.image(temp_edited, use_container_width=True)
+                else:
+                    st.caption("💡 Background removal not available (requires rembg library)")
         
         # Batch apply
         if len(st.session_state.original_images) > 1:
