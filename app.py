@@ -651,11 +651,37 @@ with tab2:
         if st.session_state.generated_images:
             st.markdown("---")
             st.subheader("Generated Images")
+            st.caption("💡 Tip: Right-click on any image to open in new tab or save directly")
             
+            # Grid display with download buttons
             cols = st.columns(3)
             for idx, (name, img) in enumerate(st.session_state.generated_images.items()):
                 with cols[idx % 3]:
-                    st.image(img, caption=name, use_container_width=True)
+                    # Display image (disable click to expand by using container)
+                    st.markdown(f"**{name}**")
+                    
+                    # Convert to bytes for inline display
+                    img_byte_arr = io.BytesIO()
+                    img.save(img_byte_arr, format='JPEG', quality=95)
+                    img_byte_arr.seek(0)
+                    
+                    # Display image
+                    st.image(img, use_column_width=True)
+                    
+                    # Individual download button
+                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                    safe_name = name.replace(' ', '_')
+                    img_byte_arr.seek(0)
+                    st.download_button(
+                        label="⬇️ Download",
+                        data=img_byte_arr,
+                        file_name=f"{safe_name}_{timestamp}.jpg",
+                        mime="image/jpeg",
+                        key=f"download_gen_{idx}",
+                        use_container_width=True
+                    )
+            
+            st.markdown("---")
             
             col1, col2 = st.columns(2)
             with col2:
