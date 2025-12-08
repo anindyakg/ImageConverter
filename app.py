@@ -175,18 +175,6 @@ def check_rembg_available():
     except ImportError:
         return False
 
-def remove_background_simple(image):
-    """Background removal using rembg library"""
-    try:
-        from rembg import remove
-        return remove(image)
-    except ImportError:
-        st.warning("💡 Background removal requires 'rembg' library.")
-        return image
-    except Exception as e:
-        st.error(f"Background removal error: {str(e)}")
-        return image
-
 def upscale_image(image, factor=2):
     """Simple upscaling (placeholder - in production use AI upscaler)"""
     width, height = image.size
@@ -486,16 +474,6 @@ with tab1:
                     st.session_state.edited_images[selected_idx] = temp_edited
                     preview_placeholder.image(temp_edited, use_container_width=True)
                     st.success("✅ Enhanced!")
-                
-                # Only show background removal if rembg is available
-                if check_rembg_available():
-                    if st.button("🖼️ Remove Background", key=f"rembg_{selected_idx}"):
-                        temp_edited = remove_background_simple(st.session_state.working_images[selected_idx])
-                        st.session_state.working_images[selected_idx] = temp_edited
-                        st.session_state.edited_images[selected_idx] = temp_edited
-                        preview_placeholder.image(temp_edited, use_container_width=True)
-                else:
-                    st.caption("💡 Background removal not available (requires rembg library)")
         
         # Batch apply
         if len(st.session_state.original_images) > 1:
@@ -520,6 +498,32 @@ with tab2:
     else:
         st.header("Step 2: AI Style Conversion")
         
+        # Custom Background Upload (Full Width - Above Columns)
+        st.markdown("### 🖼️ Custom Background (Optional)")
+        st.caption("Upload a background image to replace the original background in all generated variations")
+        
+        custom_bg_file = st.file_uploader(
+            "Choose background image",
+            type=['png', 'jpg', 'jpeg'],
+            help="Upload an image to use as the background. Your subject will be placed in this environment.",
+            key="custom_background_uploader"
+        )
+        
+        if custom_bg_file is not None:
+            st.session_state.custom_background = Image.open(custom_bg_file)
+            col_bg1, col_bg2 = st.columns([1, 3])
+            with col_bg1:
+                st.image(st.session_state.custom_background, caption="Custom Background", use_container_width=True)
+            with col_bg2:
+                st.success("✅ Custom background loaded! This will be used for all generated variations.")
+                if st.button("❌ Clear Custom Background", key="clear_custom_bg"):
+                    st.session_state.custom_background = None
+                    st.rerun()
+        else:
+            st.session_state.custom_background = None
+        
+        st.markdown("---")
+        
         col_style1, col_style2 = st.columns([1, 2])
         
         with col_style1:
@@ -536,6 +540,8 @@ with tab2:
                 st.session_state.selected_samples = []
                 st.session_state.generated_images = {}
                 st.session_state.previous_style = selected_style
+            
+            st.markdown("---")
             
             # Enhancements
             st.markdown("### ✨ Enhancements")
@@ -579,6 +585,10 @@ with tab2:
                 if st.button("🎨 Generate Selected Variations", type="primary", use_container_width=True):
                     st.session_state.generated_images = {}
                     
+                    # Show message about custom background
+                    if st.session_state.custom_background is not None:
+                        st.info("🖼️ Using custom background for all variations")
+                    
                     progress_bar = st.progress(0)
                     status_text = st.empty()
                     
@@ -597,7 +607,8 @@ with tab2:
                                 image,
                                 selected_style,
                                 var_prompt,
-                                st.session_state.enhancements
+                                st.session_state.enhancements,
+                                st.session_state.custom_background
                             )
                             
                             if generated:
@@ -706,12 +717,12 @@ with st.sidebar:
     - ✅ Crop with presets (Instagram, LinkedIn, etc.)
     - ✅ Rotate & resize
     - ✅ Noise reduction
-    - ✅ Background removal*
     - ✅ AI upscaling
     
     **AI Style Conversion:**
     - ✅ 5 style categories
     - ✅ 4 variations per style
+    - ✅ Custom background replacement
     - ✅ Professional enhancements
     - ✅ Head-to-chest crop for professional
     
@@ -724,10 +735,6 @@ with st.sidebar:
     **Privacy:** No images stored on servers
     
     **Powered by:** Google Gemini 2.5 Flash
-    
-    ---
-    
-    *Background removal requires `rembg` library
     """)
     
     st.markdown("---")
