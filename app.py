@@ -177,7 +177,7 @@ def upscale_image(image, factor=2):
     return image.resize(new_size, Image.Resampling.LANCZOS)
 
 def generate_image_variation(image, style_name, variation_prompt, enhancements=None):
-    """Generate style variation using Gemini 2.5 Flash"""
+    """Generate style variation using Gemini 2.5 Flash Image (Nano Banana)"""
     api_key = os.getenv("GOOGLE_API_KEY") or st.secrets.get("GOOGLE_API_KEY", None)
     
     if not api_key:
@@ -185,8 +185,8 @@ def generate_image_variation(image, style_name, variation_prompt, enhancements=N
         return None
     
     try:
+        # Configure the client
         genai.configure(api_key=api_key)
-        client = genai.GenerativeModel('gemini-2.0-flash-exp')
         
         enhancement_text = ""
         if enhancements:
@@ -211,26 +211,53 @@ def generate_image_variation(image, style_name, variation_prompt, enhancements=N
         if style_name == "professional":
             framing_text = " CRITICAL FRAMING: Image must be framed from head to chest level only (professional headshot crop). Do not show full body. Proper portrait framing with shoulders and upper chest visible."
         
-        prompt = f"Transform this photo into: {variation_prompt}.{framing_text}{enhancement_text} IMPORTANT: Keep all enhancements subtle and natural. The result should look very close to the original photo, just enhanced and polished. Do not make dramatic changes to hair, face structure, or overall appearance. Generate a high-quality transformed image with all requested enhancements applied naturally and realistically."
+        prompt = f"Edit and transform this photo: {variation_prompt}.{framing_text}{enhancement_text} IMPORTANT: Keep all enhancements subtle and natural. The result should look very close to the original photo, just enhanced and polished with the specified style applied. Do not make dramatic changes. Generate a high-quality transformed image."
         
-        response = client.generate_content([prompt, image])
+        # Convert PIL Image to bytes for API
+        img_byte_arr = io.BytesIO()
+        image.save(img_byte_arr, format='PNG')
+        img_byte_arr.seek(0)
         
-        if response.parts:
+        # Create the client and use models.generate_content method
+        from google.generativeai import Client
+        client = Client(api_key=api_key)
+        
+        # Use the correct method: client.models.generate_content
+        response = client.models.generate_content(
+            model='gemini-2.5-flash-image-preview',
+            contents=[prompt, image]
+        )
+        
+        # Check for generated image in response
+        if hasattr(response, 'parts') and response.parts:
             for part in response.parts:
                 if hasattr(part, 'inline_data') and part.inline_data:
+                    # Extract the generated image
                     import base64
                     image_data = part.inline_data.data
                     processed_image = Image.open(io.BytesIO(image_data))
                     return processed_image
         
-        if response.text:
-            st.caption(f"AI: {response.text[:200]}...")
+        # If text response, show it
+        if hasattr(response, 'text') and response.text:
+            st.caption(f"AI Response: {response.text[:150]}...")
         
+        # Fallback: return original
+        st.warning("⚠️ No image generated in response. Using original image.")
         return image
         
     except Exception as e:
-        st.error(f"Error: {str(e)}")
-        return None
+        error_msg = str(e)
+        
+        # Handle specific errors
+        if '429' in error_msg or 'quota' in error_msg.lower():
+            st.error("⚠️ API quota exceeded. Please wait a moment and try again.")
+        elif '404' in error_msg or 'not found' in error_msg.lower():
+            st.error("⚠️ Model not found. Make sure you have access to gemini-2.5-flash-image-preview")
+        else:
+            st.error(f"❌ Error: {error_msg[:200]}")
+        
+        return image
 
 def create_zip_file(images_dict):
     """Create ZIP file with all images"""
