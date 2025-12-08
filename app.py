@@ -651,22 +651,28 @@ with tab2:
         if st.session_state.generated_images:
             st.markdown("---")
             st.subheader("Generated Images")
-            st.caption("💡 Tip: Right-click on any image to open in new tab or save directly")
+            st.caption("💡 Tip: Right-click on any image to open in new tab or download directly")
             
             # Grid display with download buttons
             cols = st.columns(3)
             for idx, (name, img) in enumerate(st.session_state.generated_images.items()):
                 with cols[idx % 3]:
-                    # Display image (disable click to expand by using container)
+                    # Display image name
                     st.markdown(f"**{name}**")
                     
-                    # Convert to bytes for inline display
+                    # Convert to base64 for HTML display (no fullscreen button)
                     img_byte_arr = io.BytesIO()
                     img.save(img_byte_arr, format='JPEG', quality=95)
                     img_byte_arr.seek(0)
                     
-                    # Display image
-                    st.image(img, use_column_width=True)
+                    import base64
+                    img_base64 = base64.b64encode(img_byte_arr.read()).decode()
+                    
+                    # Display using HTML (no fullscreen expansion)
+                    st.markdown(
+                        f'<img src="data:image/jpeg;base64,{img_base64}" style="width:100%; border-radius:8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">',
+                        unsafe_allow_html=True
+                    )
                     
                     # Individual download button
                     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -680,6 +686,8 @@ with tab2:
                         key=f"download_gen_{idx}",
                         use_container_width=True
                     )
+                    
+                    st.markdown("")  # Spacing
             
             st.markdown("---")
             
