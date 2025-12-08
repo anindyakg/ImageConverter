@@ -185,7 +185,7 @@ def generate_image_variation(image, style_name, variation_prompt, enhancements=N
         return None
     
     try:
-        # Configure the client
+        # Configure the API
         genai.configure(api_key=api_key)
         
         enhancement_text = ""
@@ -213,27 +213,17 @@ def generate_image_variation(image, style_name, variation_prompt, enhancements=N
         
         prompt = f"Edit and transform this photo: {variation_prompt}.{framing_text}{enhancement_text} IMPORTANT: Keep all enhancements subtle and natural. The result should look very close to the original photo, just enhanced and polished with the specified style applied. Do not make dramatic changes. Generate a high-quality transformed image."
         
-        # Convert PIL Image to bytes for API
-        img_byte_arr = io.BytesIO()
-        image.save(img_byte_arr, format='PNG')
-        img_byte_arr.seek(0)
+        # Create model instance
+        model = genai.GenerativeModel('gemini-2.5-flash-image-preview')
         
-        # Create the client and use models.generate_content method
-        from google.generativeai import Client
-        client = Client(api_key=api_key)
-        
-        # Use the correct method: client.models.generate_content
-        response = client.models.generate_content(
-            model='gemini-2.5-flash-image-preview',
-            contents=[prompt, image]
-        )
+        # Generate content
+        response = model.generate_content([prompt, image])
         
         # Check for generated image in response
         if hasattr(response, 'parts') and response.parts:
             for part in response.parts:
                 if hasattr(part, 'inline_data') and part.inline_data:
                     # Extract the generated image
-                    import base64
                     image_data = part.inline_data.data
                     processed_image = Image.open(io.BytesIO(image_data))
                     return processed_image
@@ -243,7 +233,7 @@ def generate_image_variation(image, style_name, variation_prompt, enhancements=N
             st.caption(f"AI Response: {response.text[:150]}...")
         
         # Fallback: return original
-        st.warning("⚠️ No image generated in response. Using original image.")
+        st.warning("⚠️ No image generated in response. The model may only support text output currently.")
         return image
         
     except Exception as e:
@@ -253,7 +243,8 @@ def generate_image_variation(image, style_name, variation_prompt, enhancements=N
         if '429' in error_msg or 'quota' in error_msg.lower():
             st.error("⚠️ API quota exceeded. Please wait a moment and try again.")
         elif '404' in error_msg or 'not found' in error_msg.lower():
-            st.error("⚠️ Model not found. Make sure you have access to gemini-2.5-flash-image-preview")
+            st.error("⚠️ Model 'gemini-2.5-flash-image-preview' not found. This model may not be available yet.")
+            st.info("💡 Try updating: pip install --upgrade google-generativeai")
         else:
             st.error(f"❌ Error: {error_msg[:200]}")
         
