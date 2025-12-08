@@ -299,11 +299,14 @@ with tab1:
     )
     
     if uploaded_files:
-        # Initialize images on first upload
-        if len(st.session_state.original_images) != len(uploaded_files):
-            st.session_state.original_images = [Image.open(f) for f in uploaded_files]
-            st.session_state.edited_images = st.session_state.original_images.copy()
-            st.session_state.working_images = st.session_state.original_images.copy()
+        # Initialize images on first upload or when count changes
+        current_count = len(uploaded_files)
+        previous_count = len(st.session_state.original_images)
+        
+        if current_count != previous_count:
+            st.session_state.original_images = [Image.open(f).copy() for f in uploaded_files]
+            st.session_state.edited_images = [img.copy() for img in st.session_state.original_images]
+            st.session_state.working_images = [img.copy() for img in st.session_state.original_images]
         
         st.success(f"✅ {len(uploaded_files)} image(s) uploaded")
         
@@ -316,6 +319,11 @@ with tab1:
             )
         else:
             selected_idx = 0
+        
+        # Make sure we have a working image for the selected index
+        if selected_idx >= len(st.session_state.working_images):
+            st.error("Error: Image index out of range. Please refresh the page.")
+            st.stop()
         
         current_image = st.session_state.working_images[selected_idx]
         
