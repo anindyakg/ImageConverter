@@ -166,11 +166,16 @@ def rotate_image(image, angle):
     return image.rotate(-angle, expand=True, fillcolor='white')
 
 def remove_background_simple(image):
-    """Simple background removal (placeholder - in production use rembg library)"""
-    # This is a placeholder. In production, use: from rembg import remove
-    # return remove(image)
-    st.info("💡 Background removal requires 'rembg' library. Install with: pip install rembg")
-    return image
+    """Background removal using rembg library"""
+    try:
+        from rembg import remove
+        return remove(image)
+    except ImportError:
+        st.warning("💡 Background removal requires 'rembg' library. To enable this feature, install it with: pip install rembg")
+        return image
+    except Exception as e:
+        st.error(f"Background removal error: {str(e)}")
+        return image
 
 def upscale_image(image, factor=2):
     """Simple upscaling (placeholder - in production use AI upscaler)"""
