@@ -200,6 +200,18 @@ def generate_image_variation(image, style_name, variation_prompt, enhancements=N
                 enhancements_list.append("subtle hair enhancement, slightly fill in any thinning areas naturally, maintain original hairstyle and volume, keep it realistic and close to original appearance")
             if enhancements.get('skin'):
                 enhancements_list.append("smooth flawless skin, reduced wrinkles and fine lines, even skin tone, no blemishes or imperfections")
+            
+            # Skin tone adjustment
+            skin_tone = enhancements.get('skin_tone', 'Natural')
+            if skin_tone != 'Natural':
+                tone_map = {
+                    'Much Darker': 'deeper, richer skin tone with warm undertones, naturally darker complexion',
+                    'Darker': 'slightly deeper skin tone, subtly darker complexion maintaining natural look',
+                    'Lighter': 'slightly lighter skin tone, subtly brighter complexion maintaining natural look',
+                    'Much Lighter': 'lighter, brighter skin tone with luminous quality, naturally lighter complexion'
+                }
+                enhancements_list.append(f"adjust skin tone: {tone_map[skin_tone]}, ensure natural appearance and avoid unrealistic changes")
+            
             if enhancements.get('teeth'):
                 enhancements_list.append("bright white teeth, perfect smile, dental enhancement")
             if enhancements.get('eyes'):
@@ -548,6 +560,16 @@ with tab2:
             enhancements = {}
             enhancements['hair'] = st.checkbox("💇 Subtle Hair Enhancement", value=False)
             enhancements['skin'] = st.checkbox("✨ Skin Smoothing", value=False)
+            
+            # Skin tone adjustment slider
+            skin_tone_adjust = st.select_slider(
+                "🎨 Skin Tone Adjustment",
+                options=["Much Darker", "Darker", "Natural", "Lighter", "Much Lighter"],
+                value="Natural",
+                help="Adjust skin tone while maintaining natural appearance"
+            )
+            enhancements['skin_tone'] = skin_tone_adjust
+            
             enhancements['teeth'] = st.checkbox("😁 Teeth Whitening", value=False)
             enhancements['eyes'] = st.checkbox("👁️ Eye Enhancement", value=False)
             enhancements['lighting'] = st.checkbox("💡 Professional Lighting", value=True)
