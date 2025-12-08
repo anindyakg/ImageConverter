@@ -46,6 +46,8 @@ if 'original_images' not in st.session_state:
     st.session_state.original_images = []
 if 'edited_images' not in st.session_state:
     st.session_state.edited_images = []
+if 'working_images' not in st.session_state:
+    st.session_state.working_images = []
 if 'current_adjustments' not in st.session_state:
     st.session_state.current_adjustments = {}
 if 'sample_variations' not in st.session_state:
@@ -297,10 +299,11 @@ with tab1:
     )
     
     if uploaded_files:
-        st.session_state.original_images = [Image.open(f) for f in uploaded_files]
-        
-        if not st.session_state.edited_images:
+        # Initialize images on first upload
+        if len(st.session_state.original_images) != len(uploaded_files):
+            st.session_state.original_images = [Image.open(f) for f in uploaded_files]
             st.session_state.edited_images = st.session_state.original_images.copy()
+            st.session_state.working_images = st.session_state.original_images.copy()
         
         st.success(f"✅ {len(uploaded_files)} image(s) uploaded")
         
@@ -314,7 +317,7 @@ with tab1:
         else:
             selected_idx = 0
         
-        current_image = st.session_state.edited_images[selected_idx]
+        current_image = st.session_state.working_images[selected_idx]
         
         col1, col2 = st.columns([1, 2])
         
@@ -323,7 +326,7 @@ with tab1:
             st.image(st.session_state.original_images[selected_idx], use_container_width=True)
         
         with col2:
-            st.subheader("Edited Preview")
+            st.subheader("Live Preview (All Edits)")
             preview_placeholder = st.empty()
             preview_placeholder.image(current_image, use_container_width=True)
         
@@ -331,7 +334,9 @@ with tab1:
         
         # Editing tools in expandable sections
         with st.expander("⚙️ Basic Adjustments", expanded=True):
-            col1, col2, col3 = st.columns(3)
+            st.caption("Adjust sliders and changes apply instantly")
+            
+            col1, col2, col3, col4 = st.columns(4)
             
             with col1:
                 brightness = st.slider("💡 Brightness", 0.5, 2.0, 1.0, 0.1, key=f"bright_{selected_idx}")
@@ -342,14 +347,25 @@ with tab1:
                 sharpness = st.slider("🔪 Sharpness", 0.0, 3.0, 1.0, 0.1, key=f"sharp_{selected_idx}")
             
             with col3:
-                if st.button("Apply Adjustments", key=f"apply_basic_{selected_idx}"):
-                    edited = apply_basic_adjustments(
-                        st.session_state.original_images[selected_idx],
-                        brightness, contrast, saturation, sharpness
-                    )
-                    st.session_state.edited_images[selected_idx] = edited
-                    preview_placeholder.image(edited, use_container_width=True)
-                    st.success("✅ Applied!")
+                # Apply adjustments in real-time
+                temp_image = apply_basic_adjustments(
+                    st.session_state.edited_images[selected_idx],
+                    brightness, contrast, saturation, sharpness
+                )
+                preview_placeholder.image(temp_image, use_container_width=True)
+            
+            with col4:
+                if st.button("✅ Save Adjustments", key=f"save_basic_{selected_idx}", type="primary"):
+                    st.session_state.working_images[selected_idx] = temp_image
+                    st.session_state.edited_images[selected_idx] = temp_image
+                    st.success("✅ Saved!")
+                    st.rerun()
+                
+                if st.button("↩️ Reset to Original", key=f"reset_{selected_idx}"):
+                    st.session_state.working_images[selected_idx] = st.session_state.original_images[selected_idx].copy()
+                    st.session_state.edited_images[selected_idx] = st.session_state.original_images[selected_idx].copy()
+                    st.success("↩️ Reset!")
+                    st.rerun()
         
         with st.expander("✂️ Crop, Rotate & Resize"):
             col1, col2, col3 = st.columns(3)
@@ -362,63 +378,97 @@ with tab1:
                 resize_percent = st.slider("Resize (%)", 25, 200, 100, 5, key=f"resize_{selected_idx}")
             
             with col3:
-                if st.button("Apply Transform", key=f"apply_transform_{selected_idx}"):
-                    edited = st.session_state.original_images[selected_idx].copy()
+                if st.button("🔄 Preview Transform", key=f"preview_transform_{selected_idx}"):
+                    temp_edited = st.session_state.working_images[selected_idx].copy()
                     
                     # Apply crop
                     if crop_preset != "Original":
-                        edited = crop_image(edited, CROP_PRESETS[crop_preset])
+                        temp_edited = crop_image(temp_edited, CROP_PRESETS[crop_preset])
                     
                     # Apply rotation
                     if rotate_angle != 0:
-                        edited = rotate_image(edited, rotate_angle)
+                        temp_edited = rotate_image(temp_edited, rotate_angle)
                     
                     # Apply resize
                     if resize_percent != 100:
-                        edited = resize_image(edited, resize_percent)
+                        temp_edited = resize_image(temp_edited, resize_percent)
                     
-                    st.session_state.edited_images[selected_idx] = edited
-                    preview_placeholder.image(edited, use_container_width=True)
-                    st.success("✅ Transformed!")
+                    preview_placeholder.image(temp_edited, use_container_width=True)
+                
+                if st.button("✅ Apply Transform", key=f"apply_transform_{selected_idx}", type="primary"):
+                    temp_edited = st.session_state.working_images[selected_idx].copy()
+                    
+                    # Apply crop
+                    if crop_preset != "Original":
+                        temp_edited = crop_image(temp_edited, CROP_PRESETS[crop_preset])
+                    
+                    # Apply rotation
+                    if rotate_angle != 0:
+                        temp_edited = rotate_image(temp_edited, rotate_angle)
+                    
+                    # Apply resize
+                    if resize_percent != 100:
+                        temp_edited = resize_image(temp_edited, resize_percent)
+                    
+                    st.session_state.working_images[selected_idx] = temp_edited
+                    st.session_state.edited_images[selected_idx] = temp_edited
+                    preview_placeholder.image(temp_edited, use_container_width=True)
+                    st.success("✅ Transform applied!")
         
         with st.expander("🧹 Noise Reduction & Enhancement"):
-            col1, col2 = st.columns(2)
+            col1, col2, col3 = st.columns(3)
             
             with col1:
                 noise_strength = st.slider("Noise Reduction", 0, 3, 0, key=f"noise_{selected_idx}")
-                
-                if st.button("Remove Background", key=f"rembg_{selected_idx}"):
-                    edited = remove_background_simple(st.session_state.edited_images[selected_idx])
-                    st.session_state.edited_images[selected_idx] = edited
-                    preview_placeholder.image(edited, use_container_width=True)
             
             with col2:
                 upscale_factor = st.radio("Upscale Resolution", [1, 2, 4], key=f"upscale_{selected_idx}")
-                
-                if st.button("Apply Enhancement", key=f"enhance_{selected_idx}"):
-                    edited = st.session_state.edited_images[selected_idx].copy()
+            
+            with col3:
+                if st.button("🔄 Preview Enhancement", key=f"preview_enhance_{selected_idx}"):
+                    temp_edited = st.session_state.working_images[selected_idx].copy()
                     
                     if noise_strength > 0:
-                        edited = apply_noise_reduction(edited, noise_strength)
+                        temp_edited = apply_noise_reduction(temp_edited, noise_strength)
                     
                     if upscale_factor > 1:
-                        edited = upscale_image(edited, upscale_factor)
+                        temp_edited = upscale_image(temp_edited, upscale_factor)
                     
-                    st.session_state.edited_images[selected_idx] = edited
-                    preview_placeholder.image(edited, use_container_width=True)
+                    preview_placeholder.image(temp_edited, use_container_width=True)
+                
+                if st.button("✅ Apply Enhancement", key=f"enhance_{selected_idx}", type="primary"):
+                    temp_edited = st.session_state.working_images[selected_idx].copy()
+                    
+                    if noise_strength > 0:
+                        temp_edited = apply_noise_reduction(temp_edited, noise_strength)
+                    
+                    if upscale_factor > 1:
+                        temp_edited = upscale_image(temp_edited, upscale_factor)
+                    
+                    st.session_state.working_images[selected_idx] = temp_edited
+                    st.session_state.edited_images[selected_idx] = temp_edited
+                    preview_placeholder.image(temp_edited, use_container_width=True)
                     st.success("✅ Enhanced!")
+                
+                if st.button("🖼️ Remove Background", key=f"rembg_{selected_idx}"):
+                    temp_edited = remove_background_simple(st.session_state.working_images[selected_idx])
+                    st.session_state.working_images[selected_idx] = temp_edited
+                    st.session_state.edited_images[selected_idx] = temp_edited
+                    preview_placeholder.image(temp_edited, use_container_width=True)
         
         # Batch apply
         if len(st.session_state.original_images) > 1:
             st.markdown("---")
-            if st.button("🔄 Apply Current Settings to All Images", type="primary"):
+            if st.button("🔄 Apply Current Image Settings to All Images", type="primary"):
                 with st.spinner("Processing all images..."):
                     for i in range(len(st.session_state.original_images)):
-                        edited = apply_basic_adjustments(
-                            st.session_state.original_images[i],
-                            brightness, contrast, saturation, sharpness
-                        )
-                        st.session_state.edited_images[i] = edited
+                        if i != selected_idx:  # Skip current image as it's already edited
+                            edited = apply_basic_adjustments(
+                                st.session_state.working_images[i],
+                                brightness, contrast, saturation, sharpness
+                            )
+                            st.session_state.working_images[i] = edited
+                            st.session_state.edited_images[i] = edited
                     st.success(f"✅ Applied to all {len(st.session_state.original_images)} images!")
                     st.rerun()
 
