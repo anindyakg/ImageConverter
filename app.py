@@ -63,6 +63,12 @@ if 'custom_background' not in st.session_state:
 
 # Style variations
 STYLE_VARIATIONS = {
+    "passport": {
+        "US Passport": "official US passport photo style, neutral expression, plain white background, head to shoulders visible, centered composition, even lighting, no shadows, professional government document photo",
+        "Indian Passport": "official Indian passport photo style, neutral expression, plain white background, 80% face coverage, ears visible, centered composition, even lighting, professional government document photo",
+        "UK Passport": "official UK passport photo style, neutral expression, plain light grey background, head to shoulders visible, centered composition, even lighting, no shadows, professional government document photo",
+        "EU Passport": "official European Union passport photo style, neutral expression, plain light background, head to shoulders visible, centered composition, even lighting, professional government document photo"
+    },
     "professional": {
         "Corporate Executive": "professional corporate executive headshot framed from head to chest level, dark suit, confident expression, modern office background, studio lighting, sharp focus, professional portrait crop",
         "Creative Professional": "professional creative industry headshot framed from head to chest level, smart casual attire, approachable expression, bright modern workspace, natural lighting, professional portrait crop",
@@ -227,6 +233,8 @@ def generate_image_variation(image, style_name, variation_prompt, enhancements=N
         framing_text = ""
         if style_name == "professional":
             framing_text = " CRITICAL FRAMING: Image must be framed from head to chest level only (professional headshot crop). Do not show full body. Proper portrait framing with shoulders and upper chest visible."
+        elif style_name == "passport":
+            framing_text = " CRITICAL PASSPORT REQUIREMENTS: Image must show head and top of shoulders only. Face must be centered, looking directly at camera. Neutral expression (no smile). Plain background (white or light grey). No shadows on face or background. Both ears should be visible. Face should occupy 70-80% of frame. Professional government document photo standard. Remove any accessories like hats or sunglasses."
         
         # Custom background handling
         background_text = ""
@@ -694,6 +702,43 @@ with tab2:
             col1, col2 = st.columns(2)
             with col2:
                 if st.button("🔄 Not Satisfied - Regenerate", type="secondary", use_container_width=True):
+                    # Clear current images and regenerate
+                    st.session_state.generated_images = {}
+                    
+                    with st.spinner("Regenerating all variations..."):
+                        progress_bar = st.progress(0)
+                        status_text = st.empty()
+                        
+                        total = len(st.session_state.selected_samples) * len(st.session_state.edited_images)
+                        count = 0
+                        
+                        for img_idx, image in enumerate(st.session_state.edited_images):
+                            for var_name in st.session_state.selected_samples:
+                                status_text.text(f"Regenerating {var_name} for Image {img_idx+1}... ({count+1}/{total})")
+                                
+                                if var_name not in variations:
+                                    continue
+                                
+                                var_prompt = variations[var_name]
+                                generated = generate_image_variation(
+                                    image,
+                                    selected_style,
+                                    var_prompt,
+                                    st.session_state.enhancements,
+                                    st.session_state.custom_background
+                                )
+                                
+                                if generated:
+                                    key = f"img{img_idx+1}_{var_name}"
+                                    st.session_state.generated_images[key] = generated
+                                
+                                count += 1
+                                progress_bar.progress(count / total)
+                        
+                        status_text.empty()
+                        progress_bar.empty()
+                    
+                    st.success(f"✅ Regenerated {len(st.session_state.generated_images)} variations!")
                     st.rerun()
 
 # TAB 3: Download
@@ -776,10 +821,11 @@ with st.sidebar:
     - ✅ AI upscaling
     
     **AI Style Conversion:**
-    - ✅ 5 style categories
+    - ✅ 6 style categories (Passport, Professional, Fun, Artistic, Vintage, Modern)
     - ✅ 4 variations per style
     - ✅ Custom background replacement
     - ✅ Professional enhancements
+    - ✅ Passport photo specifications
     - ✅ Head-to-chest crop for professional
     
     **Download Options:**
