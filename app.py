@@ -60,6 +60,8 @@ if 'previous_style' not in st.session_state:
     st.session_state.previous_style = None
 if 'custom_background' not in st.session_state:
     st.session_state.custom_background = None
+if 'detected_ages' not in st.session_state:
+    st.session_state.detected_ages = {}
 
 # Style variations
 STYLE_VARIATIONS = {
@@ -187,7 +189,7 @@ def upscale_image(image, factor=2):
     new_size = (width * factor, height * factor)
     return image.resize(new_size, Image.Resampling.LANCZOS)
 
-def generate_image_variation(image, style_name, variation_prompt, enhancements=None, custom_background=None):
+def generate_image_variation(image, style_name, variation_prompt, enhancements=None, custom_background=None, preserve_age=True, target_age=None, detected_age=None):
     """Generate style variation using Gemini 2.5 Flash Image (Nano Banana)"""
     api_key = os.getenv("GOOGLE_API_KEY") or st.secrets.get("GOOGLE_API_KEY", None)
     
@@ -232,6 +234,23 @@ def generate_image_variation(image, style_name, variation_prompt, enhancements=N
             if enhancements_list:
                 enhancement_text = f" IMPORTANT ENHANCEMENTS: {', '.join(enhancements_list)}."
         
+        # Age transformation handling
+        age_text = ""
+        if preserve_age and detected_age:
+            age_text = f" CRITICAL AGE REQUIREMENT: The person must appear to be approximately {detected_age} years old, maintaining the exact same age appearance as in the original photo. Keep all age-related features like facial structure, skin texture, and overall maturity level consistent with age {detected_age}."
+        elif not preserve_age and target_age and target_age != "Same Age (No Change)":
+            age_map = {
+                "Child (5-12 years)": "transform the person to appear as a child between 5-12 years old, with youthful facial features, smooth skin, smaller facial proportions, innocent expression",
+                "Teenager (13-19 years)": "transform the person to appear as a teenager between 13-19 years old, with adolescent facial features, clear youthful skin, developing facial structure",
+                "Young Adult (20-30 years)": "transform the person to appear as a young adult between 20-30 years old, with mature but youthful features, clear skin with minimal signs of aging",
+                "Adult (31-45 years)": "transform the person to appear as an adult between 31-45 years old, with fully mature facial features, possible subtle fine lines, established facial character",
+                "Middle Age (46-60 years)": "transform the person to appear middle-aged between 46-60 years old, with visible signs of aging like wrinkles, age lines, some grey hair possibility, mature appearance",
+                "Senior (61-75 years)": "transform the person to appear as a senior between 61-75 years old, with clear aging signs including wrinkles, grey or white hair, age spots, distinguished mature look",
+                "Elderly (76+ years)": "transform the person to appear elderly 76+ years old, with pronounced aging features, deep wrinkles, white/grey hair, aged skin texture, very mature elderly appearance"
+            }
+            if target_age in age_map:
+                age_text = f" CRITICAL AGE TRANSFORMATION: {age_map[target_age]}. This age transformation is essential and must be clearly visible in the final image."
+        
         framing_text = ""
         if style_name == "professional":
             framing_text = " CRITICAL FRAMING: Image must be framed from head to chest level only (professional headshot crop). Do not show full body. Proper portrait framing with shoulders and upper chest visible."
@@ -244,7 +263,7 @@ def generate_image_variation(image, style_name, variation_prompt, enhancements=N
             background_text = " CUSTOM BACKGROUND: Replace the background with the style and setting from the provided custom background image. Keep the person/subject from the original photo but place them in the new background environment. Blend naturally and maintain proper lighting and perspective."
             
             # Create prompt with custom background
-            prompt = f"Edit and transform this photo: {variation_prompt}.{framing_text}{enhancement_text}{background_text} IMPORTANT: Keep the subject from the first image but replace the background with the environment from the second image. Keep all enhancements subtle and natural. Generate a high-quality transformed image."
+            prompt = f"Edit and transform this photo: {variation_prompt}.{framing_text}{age_text}{enhancement_text}{background_text} IMPORTANT: Keep the subject from the first image but replace the background with the environment from the second image. Keep all enhancements subtle and natural. Generate a high-quality transformed image."
             
             # Create model instance
             model = genai.GenerativeModel('gemini-2.5-flash-image-preview')
@@ -252,7 +271,7 @@ def generate_image_variation(image, style_name, variation_prompt, enhancements=N
             # Generate content with both images
             response = model.generate_content([prompt, image, "Custom background reference:", custom_background])
         else:
-            prompt = f"Edit and transform this photo: {variation_prompt}.{framing_text}{enhancement_text} IMPORTANT: Keep all enhancements subtle and natural. The result should look very close to the original photo, just enhanced and polished with the specified style applied. Do not make dramatic changes. Generate a high-quality transformed image."
+            prompt = f"Edit and transform this photo: {variation_prompt}.{framing_text}{age_text}{enhancement_text} IMPORTANT: Keep all enhancements subtle and natural. The result should look very close to the original photo, just enhanced and polished with the specified style applied. Do not make dramatic changes. Generate a high-quality transformed image."
             
             # Create model instance
             model = genai.GenerativeModel('gemini-2.5-flash-image-preview')
@@ -290,6 +309,50 @@ def generate_image_variation(image, style_name, variation_prompt, enhancements=N
             st.error(f"❌ Error: {error_msg[:200]}")
         
         return image
+
+def detect_age_from_image(image):
+    """Detect approximate age from image using Gemini Vision"""
+    try:
+        api_key = os.getenv('GEMINI_API_KEY')
+        if not api_key:
+            return None
+        
+        genai.configure(api_key=api_key)
+        
+        # Convert PIL Image to bytes
+        img_byte_arr = io.BytesIO()
+        image.save(img_byte_arr, format='JPEG')
+        img_byte_arr.seek(0)
+        
+        # Create model instance
+        model = genai.GenerativeModel('gemini-2.5-flash-image-preview')
+        
+        prompt = """Analyze this photo and estimate the person's age. Respond with ONLY a number representing the estimated age in years. 
+        For example, if the person appears to be in their early 30s, respond with just: 32
+        If there are multiple people, estimate the age of the primary/central person.
+        Be as accurate as possible based on facial features, skin texture, and overall appearance."""
+        
+        # Upload image
+        uploaded_file = genai.upload_file(img_byte_arr, mime_type="image/jpeg")
+        
+        # Generate response
+        response = model.generate_content([prompt, uploaded_file])
+        
+        # Clean up uploaded file
+        genai.delete_file(uploaded_file.name)
+        
+        # Extract age from response
+        age_text = response.text.strip()
+        # Extract first number found
+        import re
+        age_match = re.search(r'\d+', age_text)
+        if age_match:
+            return int(age_match.group())
+        return None
+        
+    except Exception as e:
+        st.warning(f"Could not detect age: {str(e)}")
+        return None
 
 def create_zip_file(images_dict):
     """Create ZIP file with all images"""
@@ -546,6 +609,60 @@ with tab2:
         
         st.markdown("---")
         
+        # Age Detection and Control Section
+        st.markdown("### 👤 Age Settings")
+        
+        # Detect age button
+        col_age1, col_age2 = st.columns([1, 2])
+        with col_age1:
+            if st.button("🔍 Detect Age from Photos", use_container_width=True):
+                with st.spinner("Analyzing age from photos..."):
+                    for idx, image in enumerate(st.session_state.edited_images):
+                        detected_age = detect_age_from_image(image)
+                        if detected_age:
+                            st.session_state.detected_ages[idx] = detected_age
+                    if st.session_state.detected_ages:
+                        st.success(f"✅ Age detected for {len(st.session_state.detected_ages)} photo(s)")
+                        st.rerun()
+        
+        with col_age2:
+            if st.session_state.detected_ages:
+                # Display detected ages
+                ages_text = ", ".join([f"Photo {idx+1}: ~{age} years" for idx, age in st.session_state.detected_ages.items()])
+                st.info(f"**Detected Ages:** {ages_text}")
+        
+        # Age transformation options
+        col_age_opt1, col_age_opt2 = st.columns(2)
+        
+        with col_age_opt1:
+            preserve_age = st.checkbox(
+                "✅ Preserve Original Age",
+                value=True,
+                help="Generated images will maintain the same age as the original photo"
+            )
+        
+        with col_age_opt2:
+            if not preserve_age:
+                target_age = st.selectbox(
+                    "🎂 Transform to Age Range:",
+                    options=[
+                        "Same Age (No Change)",
+                        "Child (5-12 years)",
+                        "Teenager (13-19 years)", 
+                        "Young Adult (20-30 years)",
+                        "Adult (31-45 years)",
+                        "Middle Age (46-60 years)",
+                        "Senior (61-75 years)",
+                        "Elderly (76+ years)"
+                    ],
+                    index=0,
+                    help="Transform the person to a different age range"
+                )
+            else:
+                target_age = None
+        
+        st.markdown("---")
+        
         col_style1, col_style2 = st.columns([1, 2])
         
         with col_style1:
@@ -636,12 +753,19 @@ with tab2:
                                 continue
                             
                             var_prompt = variations[var_name]
+                            
+                            # Get age parameters
+                            detected_age = st.session_state.detected_ages.get(img_idx)
+                            
                             generated = generate_image_variation(
                                 image,
                                 selected_style,
                                 var_prompt,
                                 st.session_state.enhancements,
-                                st.session_state.custom_background
+                                st.session_state.custom_background,
+                                preserve_age,
+                                target_age,
+                                detected_age
                             )
                             
                             if generated:
@@ -723,12 +847,19 @@ with tab2:
                                     continue
                                 
                                 var_prompt = variations[var_name]
+                                
+                                # Get age parameters
+                                detected_age = st.session_state.detected_ages.get(img_idx)
+                                
                                 generated = generate_image_variation(
                                     image,
                                     selected_style,
                                     var_prompt,
                                     st.session_state.enhancements,
-                                    st.session_state.custom_background
+                                    st.session_state.custom_background,
+                                    preserve_age,
+                                    target_age,
+                                    detected_age
                                 )
                                 
                                 if generated:
@@ -828,6 +959,9 @@ with st.sidebar:
     - ✅ 4 variations per style
     - ✅ Custom background replacement
     - ✅ Professional enhancements
+    - ✅ Remove grey hair option
+    - ✅ AI age detection
+    - ✅ Age preservation or transformation
     - ✅ Passport photo specifications
     - ✅ Head-to-chest crop for professional
     
