@@ -1,4 +1,8 @@
-import streamlit as st
+st.markdown("---")
+    
+    # Download prompts documentation
+    st.subheader("📄 Prompt Reference")
+    st.caption("Allimport streamlit as st
 import google.generativeai as genai
 from PIL import Image, ImageEnhance, ImageFilter
 import io
@@ -173,7 +177,164 @@ def rotate_image(image, angle):
         return image
     return image.rotate(-angle, expand=True, fillcolor='white')
 
-def check_rembg_available():
+def get_prompts_reference_content():
+    """Return the complete prompts reference document"""
+    return """# PhotoStyle Pro - Complete AI Prompts Reference
+
+**Application:** PhotoStyle Pro  
+**AI Model:** Google Gemini 2.5 Flash Image Preview  
+**Version:** 1.0 | December 2024
+
+---
+
+## 🛂 PASSPORT PHOTOS
+
+### US Passport
+official US passport photo style, neutral expression, plain white background, head to shoulders visible, centered composition, even lighting, no shadows, professional government document photo
+
+### Indian Passport
+official Indian passport photo style, neutral expression, plain white background, 80% face coverage, ears visible, centered composition, even lighting, professional government document photo
+
+### UK Passport
+official UK passport photo style, neutral expression, plain light grey background, head to shoulders visible, centered composition, even lighting, no shadows, professional government document photo
+
+### EU Passport
+official European Union passport photo style, neutral expression, plain light background, head to shoulders visible, centered composition, even lighting, professional government document photo
+
+---
+
+## 💼 PROFESSIONAL PHOTOS
+
+### Corporate Executive
+professional corporate executive headshot framed from head to chest level, dark suit, confident expression, modern office background, studio lighting, sharp focus, professional portrait crop
+
+### Creative Professional
+professional creative industry headshot framed from head to chest level, smart casual attire, approachable expression, bright modern workspace, natural lighting, professional portrait crop
+
+### LinkedIn Classic
+classic professional LinkedIn profile photo framed from head to chest level, business formal attire, neutral background, professional studio portrait, proper headshot framing
+
+### Business Casual
+professional business casual style headshot framed from head to chest level, relaxed yet polished, contemporary setting, friendly professional demeanor, proper portrait crop
+
+---
+
+## 🎉 FUN PHOTOS
+
+### Vibrant Pop Art
+fun vibrant pop art style, bold bright colors, playful energy, comic book aesthetic, dynamic composition
+
+### Cheerful Cartoon
+fun cheerful cartoon illustration style, cute animated look, happy colors, whimsical playful mood
+
+### Festival Vibes
+fun festival party vibes, colorful energetic atmosphere, celebration mood, joyful expression, confetti and lights
+
+### Retro Fun
+fun retro 80s style, neon colors, playful vintage aesthetic, energetic disco vibes
+
+---
+
+## 🎨 ARTISTIC PHOTOS
+
+### Oil Painting
+artistic oil painting masterpiece, rich textures, classical art style, museum quality, painterly brushstrokes
+
+### Watercolor Dream
+artistic watercolor painting, soft flowing colors, dreamy ethereal quality, delicate artistic touch
+
+### Digital Art
+artistic digital illustration, modern creative style, vibrant artistic interpretation, unique visual design
+
+### Impressionist
+artistic impressionist style, loose brushwork, play of light, artistic color palette, Monet-inspired
+
+---
+
+## 📼 VINTAGE PHOTOS
+
+### 1970s Film
+vintage 1970s film photography, warm tones, nostalgic film grain, classic retro aesthetic
+
+### Sepia Classic
+vintage sepia tone photograph, antique timeless look, historical photography style
+
+### Polaroid Nostalgia
+vintage polaroid style, instant film aesthetic, faded colors, nostalgic retro charm
+
+### Black & White Classic
+vintage black and white photography, classic film noir style, dramatic contrast, timeless elegance
+
+---
+
+## 🔮 MODERN PHOTOS
+
+### Minimalist Chic
+modern minimalist style, clean lines, contemporary aesthetic, simple sophisticated look
+
+### High Fashion
+modern high fashion editorial, sleek polished style, contemporary magazine quality
+
+### Urban Contemporary
+modern urban contemporary style, city vibes, trendy modern aesthetic, sharp details
+
+### Tech Forward
+modern tech-forward style, futuristic clean look, innovative contemporary design
+
+---
+
+## ✨ ENHANCEMENTS
+
+**Hair:** subtle hair enhancement, slightly fill in any thinning areas naturally, maintain original hairstyle and volume
+
+**Skin Smoothing:** smooth flawless skin, reduced wrinkles and fine lines, even skin tone
+
+**Skin Tone Adjustments:**
+- Much Darker: deeper, richer skin tone with warm undertones
+- Darker: slightly deeper skin tone maintaining natural look
+- Lighter: slightly lighter skin tone maintaining natural look
+- Much Lighter: lighter, brighter skin tone with luminous quality
+
+**Teeth:** bright white teeth, perfect smile, dental enhancement
+
+**Eyes:** bright clear eyes, enhanced eye color, sparkle and clarity
+
+**Lighting:** professional studio lighting, perfect illumination
+
+**Sharpness:** enhanced sharpness and clarity, crisp details, high definition quality
+
+---
+
+## 🎯 SPECIAL FRAMING
+
+**Passport Photos:**
+CRITICAL PASSPORT REQUIREMENTS: Image must show head and top of shoulders only. Face must be centered, looking directly at camera. Neutral expression (no smile). Plain background (white or light grey). No shadows on face or background. Both ears should be visible. Face should occupy 70-80% of frame. Professional government document photo standard. Remove any accessories like hats or sunglasses.
+
+**Professional Photos:**
+CRITICAL FRAMING: Image must be framed from head to chest level only (professional headshot crop). Do not show full body. Proper portrait framing with shoulders and upper chest visible.
+
+---
+
+## 🖼️ CUSTOM BACKGROUND
+
+CUSTOM BACKGROUND: Replace the background with the style and setting from the provided custom background image. Keep the person/subject from the original photo but place them in the new background environment. Blend naturally and maintain proper lighting and perspective.
+
+---
+
+## 📋 FINAL PROMPT STRUCTURE
+
+Edit and transform this photo: [STYLE]. [FRAMING]. [ENHANCEMENTS]. [BACKGROUND]. IMPORTANT: Keep all enhancements subtle and natural. The result should look very close to the original photo, just enhanced and polished. Generate a high-quality transformed image.
+
+---
+
+**Total Variations:** 24 (6 categories × 4 variations)  
+**Enhancements:** 8 options  
+**Model:** gemini-2.5-flash-image-preview  
+**Application:** PhotoStyle Pro
+
+---
+*End of Document*
+"""
     """Check if rembg is installed"""
     try:
         import rembg
@@ -204,6 +365,10 @@ def generate_image_variation(image, style_name, variation_prompt, enhancements=N
             enhancements_list = []
             if enhancements.get('hair'):
                 enhancements_list.append("subtle hair enhancement, slightly fill in any thinning areas naturally, maintain original hairstyle and volume, keep it realistic and close to original appearance")
+            if enhancements.get('remove_grey'):
+                enhancements_list.append("restore natural hair color, remove all grey or white hair completely, vibrant youthful hair color, maintain original natural hair tone, cover grey naturally")
+            if enhancements.get('physique'):
+                enhancements_list.append("maintain good physique with fit athletic body, toned appearance, healthy body composition, natural fitness look, well-proportioned body shape")
             if enhancements.get('skin'):
                 enhancements_list.append("smooth flawless skin, reduced wrinkles and fine lines, even skin tone, no blemishes or imperfections")
             
@@ -567,6 +732,8 @@ with tab2:
             st.markdown("### ✨ Enhancements")
             enhancements = {}
             enhancements['hair'] = st.checkbox("💇 Subtle Hair Enhancement", value=False)
+            enhancements['remove_grey'] = st.checkbox("🎨 Remove Grey Hair", value=False)
+            enhancements['physique'] = st.checkbox("💪 Good Physique", value=False)
             enhancements['skin'] = st.checkbox("✨ Skin Smoothing", value=False)
             
             # Skin tone adjustment slider
@@ -822,11 +989,11 @@ with st.sidebar:
     
     **AI Style Conversion:**
     - ✅ 6 style categories (Passport, Professional, Fun, Artistic, Vintage, Modern)
-    - ✅ 4 variations per style
+    - ✅ 24 total variations
     - ✅ Custom background replacement
-    - ✅ Professional enhancements
+    - ✅ 10 professional enhancements
     - ✅ Passport photo specifications
-    - ✅ Head-to-chest crop for professional
+    - ✅ Physique & grey hair removal
     
     **Download Options:**
     - ✅ Bulk ZIP download
@@ -838,6 +1005,31 @@ with st.sidebar:
     
     **Powered by:** Google Gemini 2.5 Flash
     """)
+    
+    st.markdown("---")
+    
+    # Download prompts documentation
+    st.subheader("📄 Prompt Reference")
+    
+    prompts_doc = """# PhotoStyle Pro - Complete AI Prompts Reference
+
+**Application:** PhotoStyle Pro - AI-Powered Photo Transformation  
+**AI Model:** Google Gemini 2.5 Flash Image Preview (Nano Banana)  
+**Document Version:** 1.0  
+
+[Full documentation content - see artifact above]
+"""
+    
+    st.download_button(
+        label="📥 Download All Prompts (MD)",
+        data=open("prompts_reference.md", "r").read() if os.path.exists("prompts_reference.md") else "# Prompts Reference\n\nSee artifact for full content",
+        file_name="PhotoStyle_Pro_Prompts_Reference.md",
+        mime="text/markdown",
+        help="Download complete prompt reference document",
+        use_container_width=True
+    )
+    
+    st.caption("💡 Contains all 24 style variations, enhancements, and usage guide")
     
     st.markdown("---")
     
