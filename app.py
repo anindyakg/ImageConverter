@@ -1,8 +1,8 @@
 st.markdown("---")
     
-    # Download prompts documentation
-    st.subheader("📄 Prompt Reference")
-    st.caption("Allimport streamlit as st
+    if st.button("🔄 Reset Everything", use_container_width=True, type="primary"):
+        st.session_state.clear()
+        st.rerun()import streamlit as st
 import google.generativeai as genai
 from PIL import Image, ImageEnhance, ImageFilter
 import io
