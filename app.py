@@ -204,6 +204,8 @@ def generate_image_variation(image, style_name, variation_prompt, enhancements=N
             enhancements_list = []
             if enhancements.get('hair'):
                 enhancements_list.append("subtle hair enhancement, slightly fill in any thinning areas naturally, maintain original hairstyle and volume, keep it realistic and close to original appearance")
+            if enhancements.get('remove_grey_hair'):
+                enhancements_list.append("restore natural hair color by removing all grey/white hair, convert grey hair to natural darker color that matches the person's original hair color, maintain realistic hair texture and appearance, keep hairstyle unchanged")
             if enhancements.get('skin'):
                 enhancements_list.append("smooth flawless skin, reduced wrinkles and fine lines, even skin tone, no blemishes or imperfections")
             
@@ -567,6 +569,7 @@ with tab2:
             st.markdown("### ✨ Enhancements")
             enhancements = {}
             enhancements['hair'] = st.checkbox("💇 Subtle Hair Enhancement", value=False)
+            enhancements['remove_grey_hair'] = st.checkbox("💇 Remove Grey Hair", value=False)
             enhancements['skin'] = st.checkbox("✨ Skin Smoothing", value=False)
             
             # Skin tone adjustment slider
