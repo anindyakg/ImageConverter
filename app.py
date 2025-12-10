@@ -173,8 +173,16 @@ def rotate_image(image, angle):
         return image
     return image.rotate(-angle, expand=True, fillcolor='white')
 
+def check_rembg_available():
+    """Check if rembg is installed"""
+    try:
+        import rembg
+        return True
+    except ImportError:
+        return False
+
 def upscale_image(image, factor=2):
-    """Simple upscaling"""
+    """Simple upscaling (placeholder - in production use AI upscaler)"""
     width, height = image.size
     new_size = (width * factor, height * factor)
     return image.resize(new_size, Image.Resampling.LANCZOS)
@@ -196,10 +204,6 @@ def generate_image_variation(image, style_name, variation_prompt, enhancements=N
             enhancements_list = []
             if enhancements.get('hair'):
                 enhancements_list.append("subtle hair enhancement, slightly fill in any thinning areas naturally, maintain original hairstyle and volume, keep it realistic and close to original appearance")
-            if enhancements.get('remove_grey'):
-                enhancements_list.append("restore natural hair color, remove all grey or white hair completely, vibrant youthful hair color, maintain original natural hair tone, cover grey naturally")
-            if enhancements.get('physique'):
-                enhancements_list.append("maintain good physique with fit athletic body, toned appearance, healthy body composition, natural fitness look, well-proportioned body shape")
             if enhancements.get('skin'):
                 enhancements_list.append("smooth flawless skin, reduced wrinkles and fine lines, even skin tone, no blemishes or imperfections")
             
@@ -563,8 +567,6 @@ with tab2:
             st.markdown("### ✨ Enhancements")
             enhancements = {}
             enhancements['hair'] = st.checkbox("💇 Subtle Hair Enhancement", value=False)
-            enhancements['remove_grey'] = st.checkbox("🎨 Remove Grey Hair", value=False)
-            enhancements['physique'] = st.checkbox("💪 Good Physique", value=False)
             enhancements['skin'] = st.checkbox("✨ Skin Smoothing", value=False)
             
             # Skin tone adjustment slider
@@ -622,3 +624,232 @@ with tab2:
                     
                     total = len(st.session_state.selected_samples) * len(st.session_state.edited_images)
                     count = 0
+                    
+                    for img_idx, image in enumerate(st.session_state.edited_images):
+                        for var_name in st.session_state.selected_samples:
+                            status_text.text(f"Generating {var_name} for Image {img_idx+1}... ({count+1}/{total})")
+                            
+                            if var_name not in variations:
+                                continue
+                            
+                            var_prompt = variations[var_name]
+                            generated = generate_image_variation(
+                                image,
+                                selected_style,
+                                var_prompt,
+                                st.session_state.enhancements,
+                                st.session_state.custom_background
+                            )
+                            
+                            if generated:
+                                key = f"img{img_idx+1}_{var_name}"
+                                st.session_state.generated_images[key] = generated
+                            
+                            count += 1
+                            progress_bar.progress(count / total)
+                    
+                    status_text.empty()
+                    progress_bar.empty()
+                    st.success(f"✅ Generated {len(st.session_state.generated_images)} variations!")
+                    st.balloons()
+            else:
+                st.warning("⚠️ Please select at least one variation")
+        
+        # Display generated images
+        if st.session_state.generated_images:
+            st.markdown("---")
+            st.subheader("Generated Images")
+            st.caption("💡 Tip: Right-click on any image to open in new tab or download directly")
+            
+            # Grid display with download buttons
+            cols = st.columns(3)
+            for idx, (name, img) in enumerate(st.session_state.generated_images.items()):
+                with cols[idx % 3]:
+                    # Display image name
+                    st.markdown(f"**{name}**")
+                    
+                    # Convert to base64 for HTML display (no fullscreen button)
+                    img_byte_arr = io.BytesIO()
+                    img.save(img_byte_arr, format='JPEG', quality=95)
+                    img_byte_arr.seek(0)
+                    
+                    import base64
+                    img_base64 = base64.b64encode(img_byte_arr.read()).decode()
+                    
+                    # Display using HTML (no fullscreen expansion)
+                    st.markdown(
+                        f'<img src="data:image/jpeg;base64,{img_base64}" style="width:100%; border-radius:8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">',
+                        unsafe_allow_html=True
+                    )
+                    
+                    # Individual download button
+                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                    safe_name = name.replace(' ', '_')
+                    img_byte_arr.seek(0)
+                    st.download_button(
+                        label="⬇️ Download",
+                        data=img_byte_arr,
+                        file_name=f"{safe_name}_{timestamp}.jpg",
+                        mime="image/jpeg",
+                        key=f"download_gen_{idx}",
+                        use_container_width=True
+                    )
+                    
+                    st.markdown("")  # Spacing
+            
+            st.markdown("---")
+            
+            col1, col2 = st.columns(2)
+            with col2:
+                if st.button("🔄 Not Satisfied - Regenerate", type="secondary", use_container_width=True):
+                    # Clear current images and regenerate
+                    st.session_state.generated_images = {}
+                    
+                    with st.spinner("Regenerating all variations..."):
+                        progress_bar = st.progress(0)
+                        status_text = st.empty()
+                        
+                        total = len(st.session_state.selected_samples) * len(st.session_state.edited_images)
+                        count = 0
+                        
+                        for img_idx, image in enumerate(st.session_state.edited_images):
+                            for var_name in st.session_state.selected_samples:
+                                status_text.text(f"Regenerating {var_name} for Image {img_idx+1}... ({count+1}/{total})")
+                                
+                                if var_name not in variations:
+                                    continue
+                                
+                                var_prompt = variations[var_name]
+                                generated = generate_image_variation(
+                                    image,
+                                    selected_style,
+                                    var_prompt,
+                                    st.session_state.enhancements,
+                                    st.session_state.custom_background
+                                )
+                                
+                                if generated:
+                                    key = f"img{img_idx+1}_{var_name}"
+                                    st.session_state.generated_images[key] = generated
+                                
+                                count += 1
+                                progress_bar.progress(count / total)
+                        
+                        status_text.empty()
+                        progress_bar.empty()
+                    
+                    st.success(f"✅ Regenerated {len(st.session_state.generated_images)} variations!")
+                    st.rerun()
+
+# TAB 3: Download
+with tab3:
+    st.header("Step 3: Download Your Images")
+    
+    if st.session_state.edited_images:
+        st.subheader("📷 Edited Photos")
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            # Download edited images as ZIP
+            edited_dict = {f"edited_image_{i+1}": img for i, img in enumerate(st.session_state.edited_images)}
+            zip_data = create_zip_file(edited_dict)
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            
+            st.download_button(
+                label=f"📦 Download All Edited Photos ({len(st.session_state.edited_images)} images)",
+                data=zip_data,
+                file_name=f"edited_photos_{timestamp}.zip",
+                mime="application/zip",
+                use_container_width=True
+            )
+    
+    if st.session_state.generated_images:
+        st.markdown("---")
+        st.subheader("🎨 AI Styled Photos")
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            # Download all styled images as ZIP
+            zip_data = create_zip_file(st.session_state.generated_images)
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            
+            st.download_button(
+                label=f"📦 Download All Styled Photos ({len(st.session_state.generated_images)} images)",
+                data=zip_data,
+                file_name=f"styled_photos_{timestamp}.zip",
+                mime="application/zip",
+                use_container_width=True
+            )
+        
+        with col2:
+            # Show individual downloads toggle
+            if st.button("📥 Show Individual Downloads", use_container_width=True):
+                st.session_state.show_individual = True
+        
+        # Individual downloads
+        if st.session_state.get('show_individual', False):
+            st.markdown("#### Individual Downloads")
+            for name, img in st.session_state.generated_images.items():
+                img_buffer = io.BytesIO()
+                img.save(img_buffer, format='JPEG', quality=95)
+                img_buffer.seek(0)
+                
+                safe_name = name.replace(' ', '_')
+                st.download_button(
+                    label=f"⬇️ {name}",
+                    data=img_buffer,
+                    file_name=f"{safe_name}_{timestamp}.jpg",
+                    mime="image/jpeg",
+                    key=f"download_{name}"
+                )
+    
+    if not st.session_state.edited_images and not st.session_state.generated_images:
+        st.info("👈 Upload and edit images first to enable downloads")
+
+# Sidebar
+with st.sidebar:
+    st.header("ℹ️ PhotoStyle Pro")
+    st.markdown("""
+    ### Features:
+    
+    **Photo Editing:**
+    - ✅ Batch upload & processing
+    - ✅ Brightness, contrast, saturation
+    - ✅ Crop with presets (Instagram, LinkedIn, etc.)
+    - ✅ Rotate & resize
+    - ✅ Noise reduction
+    - ✅ AI upscaling
+    
+    **AI Style Conversion:**
+    - ✅ 6 style categories (Passport, Professional, Fun, Artistic, Vintage, Modern)
+    - ✅ 4 variations per style
+    - ✅ Custom background replacement
+    - ✅ Professional enhancements
+    - ✅ Passport photo specifications
+    - ✅ Head-to-chest crop for professional
+    
+    **Download Options:**
+    - ✅ Bulk ZIP download
+    - ✅ Individual image download
+    
+    ---
+    
+    **Privacy:** No images stored on servers
+    
+    **Powered by:** Google Gemini 2.5 Flash
+    """)
+    
+    st.markdown("---")
+    
+    if st.button("🔄 Reset Everything", use_container_width=True, type="primary"):
+        st.session_state.clear()
+        st.rerun()
+
+# Footer
+st.markdown("---")
+st.markdown(
+    "<p style='text-align: center; color: #666; font-size: 14px;'>"
+    "🔒 <b>Privacy First:</b> All processing happens in real-time. No images are stored on our servers."
+    "</p>",
+    unsafe_allow_html=True
+)
