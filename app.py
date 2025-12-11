@@ -113,6 +113,18 @@ CROP_PRESETS = {
     "Original": None
 }
 
+def convert_to_rgb(image):
+    """Convert image to RGB mode for JPEG compatibility"""
+    if image.mode == 'RGBA':
+        # Create white background and paste image with alpha mask
+        rgb_image = Image.new('RGB', image.size, (255, 255, 255))
+        rgb_image.paste(image, mask=image.split()[3])  # Use alpha channel as mask
+        return rgb_image
+    elif image.mode not in ('RGB', 'L'):
+        # Convert any other mode to RGB
+        return image.convert('RGB')
+    return image
+
 def apply_basic_adjustments(image, brightness=1.0, contrast=1.0, saturation=1.0, sharpness=1.0):
     """Apply basic photo adjustments"""
     if brightness != 1.0:
@@ -286,6 +298,8 @@ def generate_image_variation(image, style_name, variation_prompt, enhancements=N
                     # Extract the generated image
                     image_data = part.inline_data.data
                     processed_image = Image.open(io.BytesIO(image_data))
+                    # Convert to RGB to avoid RGBA/JPEG issues
+                    processed_image = convert_to_rgb(processed_image)
                     return processed_image
         
         # If text response, show it
@@ -321,6 +335,10 @@ def detect_age_from_image(image):
         
         # Convert PIL Image to bytes
         img_byte_arr = io.BytesIO()
+        
+        # Convert to RGB for JPEG compatibility
+        image = convert_to_rgb(image)
+        
         image.save(img_byte_arr, format='JPEG')
         img_byte_arr.seek(0)
         
@@ -361,6 +379,10 @@ def create_zip_file(images_dict):
     with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
         for name, image in images_dict.items():
             img_buffer = io.BytesIO()
+            
+            # Convert to RGB for JPEG compatibility
+            image = convert_to_rgb(image)
+            
             image.save(img_buffer, format='JPEG', quality=95)
             img_buffer.seek(0)
             
@@ -406,7 +428,8 @@ with tab1:
         previous_count = len(st.session_state.original_images)
         
         if current_count != previous_count:
-            st.session_state.original_images = [Image.open(f).copy() for f in uploaded_files]
+            # Open images and convert to RGB to avoid RGBA/JPEG issues
+            st.session_state.original_images = [convert_to_rgb(Image.open(f)) for f in uploaded_files]
             st.session_state.edited_images = [img.copy() for img in st.session_state.original_images]
             st.session_state.working_images = [img.copy() for img in st.session_state.original_images]
         
@@ -595,7 +618,7 @@ with tab2:
         )
         
         if custom_bg_file is not None:
-            st.session_state.custom_background = Image.open(custom_bg_file)
+            st.session_state.custom_background = convert_to_rgb(Image.open(custom_bg_file))
             col_bg1, col_bg2 = st.columns([1, 3])
             with col_bg1:
                 st.image(st.session_state.custom_background, caption="Custom Background", use_container_width=True)
@@ -797,7 +820,11 @@ with tab2:
                     
                     # Convert to base64 for HTML display (no fullscreen button)
                     img_byte_arr = io.BytesIO()
-                    img.save(img_byte_arr, format='JPEG', quality=95)
+                    
+                    # Convert to RGB for JPEG compatibility
+                    display_img = convert_to_rgb(img)
+                    
+                    display_img.save(img_byte_arr, format='JPEG', quality=95)
                     img_byte_arr.seek(0)
                     
                     import base64
@@ -925,7 +952,11 @@ with tab3:
             st.markdown("#### Individual Downloads")
             for name, img in st.session_state.generated_images.items():
                 img_buffer = io.BytesIO()
-                img.save(img_buffer, format='JPEG', quality=95)
+                
+                # Convert to RGB for JPEG compatibility
+                download_img = convert_to_rgb(img)
+                
+                download_img.save(img_buffer, format='JPEG', quality=95)
                 img_buffer.seek(0)
                 
                 safe_name = name.replace(' ', '_')
