@@ -8,6 +8,9 @@ from datetime import datetime
 import numpy as np
 from PIL import ImageOps
 
+# Import authentication
+from simple_auth import SimpleAuthenticator
+
 # Page config
 st.set_page_config(
     page_title="Photo Style Converter Pro",
@@ -15,6 +18,19 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded"
 )
+
+# ============================================
+# AUTHENTICATION
+# ============================================
+# Initialize authenticator
+auth = SimpleAuthenticator(credentials_file='users.json')
+
+# Require authentication - if not logged in, show login page
+if not auth.require_authentication():
+    st.stop()
+
+# Show user info in sidebar (will be added at the end)
+# auth.show_user_info(location='sidebar')
 
 # Custom CSS
 st.markdown("""
@@ -397,7 +413,8 @@ col_header1, col_header2 = st.columns([3, 1])
 
 with col_header1:
     st.title("📸 PhotoStyle Pro")
-    st.markdown("Professional Photo Editor & AI Style Converter")
+    username = auth.get_username()
+    st.markdown(f"Professional Photo Editor & AI Style Converter | Welcome, **{username}**! 👋")
 
 with col_header2:
     st.markdown("")
@@ -973,6 +990,9 @@ with tab3:
 
 # Sidebar
 with st.sidebar:
+    # Show authenticated user info
+    auth.show_user_info(location='sidebar')
+    
     st.header("ℹ️ PhotoStyle Pro")
     st.markdown("""
     ### Features:
