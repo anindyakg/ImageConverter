@@ -690,16 +690,24 @@ with tab2:
         
         # Detect age button
         if st.button("🔍 Detect Age from Photos", use_container_width=True):
+            detected_count = 0
             with st.spinner("Analyzing age from photos..."):
                 for idx, image in enumerate(st.session_state.edited_images):
                     detected_age = detect_age_from_image(image)
                     if detected_age:
                         st.session_state.detected_ages[idx] = detected_age
-                if st.session_state.detected_ages:
-                    st.success(f"✅ Age detected for {len(st.session_state.detected_ages)} photo(s)")
-                    st.rerun()
+                        detected_count += 1
+            
+            # Show result message outside spinner
+            if detected_count > 0:
+                st.success(f"✅ Age detected for {detected_count} photo(s)")
+            else:
+                st.error("❌ Could not detect age from any photos. Please check your API key and try again.")
+            
+            # Rerun to display results
+            st.rerun()
         
-        # Display detected ages
+        # Display detected ages (ALWAYS check, even outside button)
         if st.session_state.detected_ages:
             st.markdown("---")
             st.markdown("**🎂 Detected Ages:**")
@@ -707,6 +715,9 @@ with tab2:
                 age_range = get_age_range(age)
                 st.info(f"**Photo {idx+1}:** ~{age} years old ({age_range})")
             st.markdown("---")
+        else:
+            # Show hint if no ages detected yet
+            st.caption("💡 Click 'Detect Age from Photos' button above to analyze ages")
 
         
         # Age transformation options
