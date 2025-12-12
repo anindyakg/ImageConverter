@@ -689,14 +689,30 @@ with tab2:
         st.markdown("### 👤 Age Settings")
         
         # Detect age button
-        if st.button("🔍 Detect Age from Photos", use_container_width=True):
+        detect_clicked = st.button("🔍 Detect Age from Photos", use_container_width=True)
+        
+        # Debug: Show what we have
+        st.write(f"**Debug Info:**")
+        st.write(f"- Button clicked: {detect_clicked}")
+        st.write(f"- Number of images: {len(st.session_state.edited_images)}")
+        st.write(f"- Detected ages stored: {st.session_state.detected_ages}")
+        
+        if detect_clicked:
+            st.write("🔍 **Button was clicked! Starting detection...**")
             detected_count = 0
+            
             with st.spinner("Analyzing age from photos..."):
                 for idx, image in enumerate(st.session_state.edited_images):
+                    st.write(f"Processing image {idx+1}...")
                     detected_age = detect_age_from_image(image)
+                    st.write(f"Result for image {idx+1}: {detected_age}")
+                    
                     if detected_age:
                         st.session_state.detected_ages[idx] = detected_age
                         detected_count += 1
+            
+            st.write(f"✅ Detection complete! Found {detected_count} ages")
+            st.write(f"Stored ages: {st.session_state.detected_ages}")
             
             # Show result message outside spinner
             if detected_count > 0:
@@ -704,10 +720,15 @@ with tab2:
             else:
                 st.error("❌ Could not detect age from any photos. Please check your API key and try again.")
             
+            st.warning("About to rerun the app...")
             # Rerun to display results
             st.rerun()
         
         # Display detected ages (ALWAYS check, even outside button)
+        st.write(f"**Checking display condition:**")
+        st.write(f"- detected_ages exists: {bool(st.session_state.detected_ages)}")
+        st.write(f"- detected_ages content: {st.session_state.detected_ages}")
+        
         if st.session_state.detected_ages:
             st.markdown("---")
             st.markdown("**🎂 Detected Ages:**")
