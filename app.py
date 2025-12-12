@@ -343,8 +343,10 @@ def generate_image_variation(image, style_name, variation_prompt, enhancements=N
 def detect_age_from_image(image):
     """Detect approximate age from image using Gemini Vision"""
     try:
-        api_key = os.getenv('GEMINI_API_KEY')
+        # Use the same API key as image generation
+        api_key = os.getenv("GOOGLE_API_KEY") or st.secrets.get("GOOGLE_API_KEY", None)
         if not api_key:
+            st.warning("⚠️ Google API key not found for age detection")
             return None
         
         genai.configure(api_key=api_key)
