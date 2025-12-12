@@ -688,17 +688,24 @@ with tab2:
         # Age Detection and Control Section
         st.markdown("### 👤 Age Settings")
         
+        # Initialize detection flag
+        if 'detecting_age' not in st.session_state:
+            st.session_state.detecting_age = False
+        
         # Detect age button
-        detect_clicked = st.button("🔍 Detect Age from Photos", use_container_width=True)
+        if st.button("🔍 Detect Age from Photos", use_container_width=True):
+            st.session_state.detecting_age = True
+            st.rerun()
         
         # Debug: Show what we have
         st.write(f"**Debug Info:**")
-        st.write(f"- Button clicked: {detect_clicked}")
+        st.write(f"- Detecting flag: {st.session_state.detecting_age}")
         st.write(f"- Number of images: {len(st.session_state.edited_images)}")
         st.write(f"- Detected ages stored: {st.session_state.detected_ages}")
         
-        if detect_clicked:
-            st.write("🔍 **Button was clicked! Starting detection...**")
+        # Process detection if flag is set
+        if st.session_state.detecting_age:
+            st.write("🔍 **Starting detection process...**")
             detected_count = 0
             
             with st.spinner("Analyzing age from photos..."):
@@ -714,17 +721,16 @@ with tab2:
             st.write(f"✅ Detection complete! Found {detected_count} ages")
             st.write(f"Stored ages: {st.session_state.detected_ages}")
             
-            # Show result message outside spinner
+            # Reset flag
+            st.session_state.detecting_age = False
+            
+            # Show result message
             if detected_count > 0:
                 st.success(f"✅ Age detected for {detected_count} photo(s)")
             else:
                 st.error("❌ Could not detect age from any photos. Please check your API key and try again.")
-            
-            st.warning("About to rerun the app...")
-            # Rerun to display results
-            st.rerun()
         
-        # Display detected ages (ALWAYS check, even outside button)
+        # Display detected ages
         st.write(f"**Checking display condition:**")
         st.write(f"- detected_ages exists: {bool(st.session_state.detected_ages)}")
         st.write(f"- detected_ages content: {st.session_state.detected_ages}")
