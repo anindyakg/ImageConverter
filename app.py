@@ -388,6 +388,28 @@ def detect_age_from_image(image):
         st.warning(f"Could not detect age: {str(e)}")
         return None
 
+def get_age_range(age):
+    """Convert age to age range category"""
+    if age is None:
+        return "Unknown"
+    
+    if age < 5:
+        return "Infant (0-4 years)"
+    elif age <= 12:
+        return "Child (5-12 years)"
+    elif age <= 19:
+        return "Teenager (13-19 years)"
+    elif age <= 30:
+        return "Young Adult (20-30 years)"
+    elif age <= 45:
+        return "Adult (31-45 years)"
+    elif age <= 60:
+        return "Middle Age (46-60 years)"
+    elif age <= 75:
+        return "Senior (61-75 years)"
+    else:
+        return "Elderly (76+ years)"
+
 def create_zip_file(images_dict):
     """Create ZIP file with all images"""
     zip_buffer = io.BytesIO()
@@ -419,8 +441,22 @@ with col_header1:
 with col_header2:
     st.markdown("")
     if st.button("🔄 Start Over", type="secondary", use_container_width=True):
-        st.session_state.clear()
-        st.rerun()
+        # Save authentication state before clearing
+        is_authenticated = st.session_state.get('authenticated', False)
+        current_username = st.session_state.get('username', None)
+        current_login_time = st.session_state.get('login_time', None)
+        
+        # Only proceed if user is authenticated
+        if is_authenticated:
+            # Clear all session state
+            st.session_state.clear()
+            
+            # Restore authentication state
+            st.session_state.authenticated = True
+            st.session_state.username = current_username
+            st.session_state.login_time = current_login_time
+            
+            st.rerun()
 
 st.markdown("---")
 
@@ -667,9 +703,12 @@ with tab2:
         
         with col_age2:
             if st.session_state.detected_ages:
-                # Display detected ages
-                ages_text = ", ".join([f"Photo {idx+1}: ~{age} years" for idx, age in st.session_state.detected_ages.items()])
-                st.info(f"**Detected Ages:** {ages_text}")
+                # Display detected ages with ranges
+                st.markdown("**🎂 Detected Ages:**")
+                for idx, age in st.session_state.detected_ages.items():
+                    age_range = get_age_range(age)
+                    st.info(f"**Photo {idx+1}:** ~{age} years old ({age_range})")
+
         
         # Age transformation options
         col_age_opt1, col_age_opt2 = st.columns(2)
@@ -1030,8 +1069,22 @@ with st.sidebar:
     st.markdown("---")
     
     if st.button("🔄 Reset Everything", use_container_width=True, type="primary"):
-        st.session_state.clear()
-        st.rerun()
+        # Save authentication state before clearing
+        is_authenticated = st.session_state.get('authenticated', False)
+        current_username = st.session_state.get('username', None)
+        current_login_time = st.session_state.get('login_time', None)
+        
+        # Only proceed if user is authenticated
+        if is_authenticated:
+            # Clear all session state
+            st.session_state.clear()
+            
+            # Restore authentication state
+            st.session_state.authenticated = True
+            st.session_state.username = current_username
+            st.session_state.login_time = current_login_time
+            
+            st.rerun()
 
 # Footer
 st.markdown("---")
