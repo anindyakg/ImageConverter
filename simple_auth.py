@@ -161,7 +161,6 @@ class SimpleAuthenticator:
             
             st.markdown("---")
             st.caption("🔒 Your data is secure and encrypted")
-            st.caption("📧 Demo: username: `demo` password: `demo123`")
             
             st.markdown('</div>', unsafe_allow_html=True)
         
