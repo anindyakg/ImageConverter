@@ -689,25 +689,24 @@ with tab2:
         st.markdown("### 👤 Age Settings")
         
         # Detect age button
-        col_age1, col_age2 = st.columns([1, 2])
-        with col_age1:
-            if st.button("🔍 Detect Age from Photos", use_container_width=True):
-                with st.spinner("Analyzing age from photos..."):
-                    for idx, image in enumerate(st.session_state.edited_images):
-                        detected_age = detect_age_from_image(image)
-                        if detected_age:
-                            st.session_state.detected_ages[idx] = detected_age
-                    if st.session_state.detected_ages:
-                        st.success(f"✅ Age detected for {len(st.session_state.detected_ages)} photo(s)")
-                        st.rerun()
+        if st.button("🔍 Detect Age from Photos", use_container_width=True):
+            with st.spinner("Analyzing age from photos..."):
+                for idx, image in enumerate(st.session_state.edited_images):
+                    detected_age = detect_age_from_image(image)
+                    if detected_age:
+                        st.session_state.detected_ages[idx] = detected_age
+                if st.session_state.detected_ages:
+                    st.success(f"✅ Age detected for {len(st.session_state.detected_ages)} photo(s)")
+                    st.rerun()
         
-        with col_age2:
-            if st.session_state.detected_ages:
-                # Display detected ages with ranges
-                st.markdown("**🎂 Detected Ages:**")
-                for idx, age in st.session_state.detected_ages.items():
-                    age_range = get_age_range(age)
-                    st.info(f"**Photo {idx+1}:** ~{age} years old ({age_range})")
+        # Display detected ages
+        if st.session_state.detected_ages:
+            st.markdown("---")
+            st.markdown("**🎂 Detected Ages:**")
+            for idx, age in st.session_state.detected_ages.items():
+                age_range = get_age_range(age)
+                st.info(f"**Photo {idx+1}:** ~{age} years old ({age_range})")
+            st.markdown("---")
 
         
         # Age transformation options
