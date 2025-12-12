@@ -268,16 +268,16 @@ def generate_image_variation(image, style_name, variation_prompt, enhancements=N
             age_text = f" CRITICAL AGE REQUIREMENT: The person must appear to be approximately {detected_age} years old, maintaining the exact same age appearance as in the original photo. Keep all age-related features like facial structure, skin texture, and overall maturity level consistent with age {detected_age}."
         elif not preserve_age and target_age and target_age != "Same Age (No Change)":
             age_map = {
-                "Child (5-12 years)": "transform the person to appear as a child between 5-12 years old, with youthful facial features, smooth skin, smaller facial proportions, innocent expression",
-                "Teenager (13-19 years)": "transform the person to appear as a teenager between 13-19 years old, with adolescent facial features, clear youthful skin, developing facial structure",
-                "Young Adult (20-30 years)": "transform the person to appear as a young adult between 20-30 years old, with mature but youthful features, clear skin with minimal signs of aging",
-                "Adult (31-45 years)": "transform the person to appear as an adult between 31-45 years old, with fully mature facial features, possible subtle fine lines, established facial character",
-                "Middle Age (46-60 years)": "transform the person to appear middle-aged between 46-60 years old, with visible signs of aging like wrinkles, age lines, some grey hair possibility, mature appearance",
-                "Senior (61-75 years)": "transform the person to appear as a senior between 61-75 years old, with clear aging signs including wrinkles, grey or white hair, age spots, distinguished mature look",
-                "Elderly (76+ years)": "transform the person to appear elderly 76+ years old, with pronounced aging features, deep wrinkles, white/grey hair, aged skin texture, very mature elderly appearance"
+                "Child (5-12 years)": "MANDATORY AGE TRANSFORMATION - transform the person to appear as a child between 5-12 years old WITH: youthful childlike facial features, very smooth unblemished skin, smaller facial proportions typical of children, innocent childlike expression, NO adult features whatsoever",
+                "Teenager (13-19 years)": "MANDATORY AGE TRANSFORMATION - transform the person to appear as a teenager between 13-19 years old WITH: adolescent facial features, clear youthful teenage skin, developing facial structure, youthful appearance, NO mature adult features",
+                "Young Adult (20-30 years)": "MANDATORY AGE TRANSFORMATION - transform the person to appear as a young adult between 20-30 years old WITH: mature but youthful features, clear skin with minimal signs of aging, young adult appearance",
+                "Adult (31-45 years)": "MANDATORY AGE TRANSFORMATION - transform the person to appear as an adult between 31-45 years old WITH: fully mature facial features, possible subtle fine lines, established facial character, mature adult appearance",
+                "Middle Age (46-60 years)": "MANDATORY AGE TRANSFORMATION - transform the person to appear middle-aged between 46-60 years old WITH: visible signs of aging including wrinkles, age lines, some grey hair, mature middle-aged appearance, NO youthful features",
+                "Senior (61-75 years)": "MANDATORY AGE TRANSFORMATION - transform the person to appear as a senior between 61-75 years old WITH: clear aging signs including wrinkles, grey or white hair, age spots, distinguished senior appearance, elderly features",
+                "Elderly (76+ years)": "MANDATORY AGE TRANSFORMATION - transform the person to appear elderly 76+ years old WITH: pronounced aging features, deep wrinkles, white/grey hair, aged skin texture, very mature elderly appearance, advanced age signs"
             }
             if target_age in age_map:
-                age_text = f" CRITICAL AGE TRANSFORMATION: {age_map[target_age]}. This age transformation is essential and must be clearly visible in the final image."
+                age_text = f" {age_map[target_age]}. THIS AGE TRANSFORMATION IS ABSOLUTELY CRITICAL AND MUST BE APPLIED TO EVERY GENERATED IMAGE CONSISTENTLY."
         
         framing_text = ""
         if style_name == "professional":
@@ -699,29 +699,16 @@ with tab2:
             st.session_state.detecting_age = True
             st.rerun()
         
-        # Debug: Show what we have
-        st.write(f"**Debug Info:**")
-        st.write(f"- Detecting flag: {st.session_state.detecting_age}")
-        st.write(f"- Number of images: {len(st.session_state.edited_images)}")
-        st.write(f"- Detected ages stored: {st.session_state.detected_ages}")
-        
         # Process detection if flag is set
         if st.session_state.detecting_age:
-            st.write("🔍 **Starting detection process...**")
             detected_count = 0
             
             with st.spinner("Analyzing age from photos..."):
                 for idx, image in enumerate(st.session_state.edited_images):
-                    st.write(f"Processing image {idx+1}...")
                     detected_age = detect_age_from_image(image)
-                    st.write(f"Result for image {idx+1}: {detected_age}")
-                    
                     if detected_age:
                         st.session_state.detected_ages[idx] = detected_age
                         detected_count += 1
-            
-            st.write(f"✅ Detection complete! Found {detected_count} ages")
-            st.write(f"Stored ages: {st.session_state.detected_ages}")
             
             # Reset flag
             st.session_state.detecting_age = False
@@ -730,13 +717,9 @@ with tab2:
             if detected_count > 0:
                 st.success(f"✅ Age detected for {detected_count} photo(s)")
             else:
-                st.error("❌ Could not detect age from any photos. Please check your API key and try again.")
+                st.error("❌ Could not detect age from any photos. Please check your API key.")
         
         # Display detected ages
-        st.write(f"**Checking display condition:**")
-        st.write(f"- detected_ages exists: {bool(st.session_state.detected_ages)}")
-        st.write(f"- detected_ages content: {st.session_state.detected_ages}")
-        
         if st.session_state.detected_ages:
             st.markdown("---")
             st.markdown("**🎂 Detected Ages:**")
@@ -744,9 +727,6 @@ with tab2:
                 age_range = get_age_range(age)
                 st.info(f"**Photo {idx+1}:** ~{age} years old ({age_range})")
             st.markdown("---")
-        else:
-            # Show hint if no ages detected yet
-            st.caption("💡 Click 'Detect Age from Photos' button above to analyze ages")
 
         
         # Age transformation options
