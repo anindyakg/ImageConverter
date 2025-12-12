@@ -78,6 +78,9 @@ if 'custom_background' not in st.session_state:
     st.session_state.custom_background = None
 if 'detected_ages' not in st.session_state:
     st.session_state.detected_ages = {}
+if 'uploader_key' not in st.session_state:
+    import time
+    st.session_state.uploader_key = int(time.time())
 
 # Style variations
 STYLE_VARIATIONS = {
@@ -450,6 +453,10 @@ with col_header2:
         
         # Only proceed if user is authenticated
         if is_authenticated:
+            # Clear Streamlit cache
+            st.cache_data.clear()
+            st.cache_resource.clear()
+            
             # Clear all session state
             st.session_state.clear()
             
@@ -457,6 +464,10 @@ with col_header2:
             st.session_state.authenticated = True
             st.session_state.username = current_username
             st.session_state.login_time = current_login_time
+            
+            # Force new uploader key
+            import time
+            st.session_state.uploader_key = int(time.time())
             
             st.rerun()
 
@@ -474,7 +485,8 @@ with tab1:
         "Upload one or multiple photos",
         type=['png', 'jpg', 'jpeg'],
         accept_multiple_files=True,
-        help="Upload multiple images for batch processing"
+        help="Upload multiple images for batch processing",
+        key=f"main_uploader_{st.session_state.uploader_key}"
     )
     
     if uploaded_files:
@@ -669,7 +681,7 @@ with tab2:
             "Choose background image",
             type=['png', 'jpg', 'jpeg'],
             help="Upload an image to use as the background. Your subject will be placed in this environment.",
-            key="custom_background_uploader"
+            key=f"custom_background_uploader_{st.session_state.uploader_key}"
         )
         
         if custom_bg_file is not None:
@@ -1095,6 +1107,10 @@ with st.sidebar:
         
         # Only proceed if user is authenticated
         if is_authenticated:
+            # Clear Streamlit cache
+            st.cache_data.clear()
+            st.cache_resource.clear()
+            
             # Clear all session state
             st.session_state.clear()
             
@@ -1102,6 +1118,10 @@ with st.sidebar:
             st.session_state.authenticated = True
             st.session_state.username = current_username
             st.session_state.login_time = current_login_time
+            
+            # Force new uploader key
+            import time
+            st.session_state.uploader_key = int(time.time())
             
             st.rerun()
 
