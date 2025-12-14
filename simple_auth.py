@@ -261,6 +261,10 @@ class SimpleAuthenticator:
             self.login_form()
         return True
     
+    def require_authentication(self):
+        """Alias for require_auth - for backwards compatibility"""
+        return self.require_auth()
+    
     def get_username(self):
         """Get current username"""
         return st.session_state.username
