@@ -282,7 +282,7 @@ class SimpleAuthenticator:
             border-radius: 15px;
             box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
             max-width: 700px;
-            max-height: 80vh;
+            max-height: 85vh;
             overflow-y: auto;
             z-index: 9999;
         }
@@ -297,6 +297,7 @@ class SimpleAuthenticator:
             color: #4b5563;
             font-size: 0.95em;
             line-height: 1.6;
+            margin-bottom: 30px;
         }
         .terms-list {
             margin: 20px 0;
@@ -306,56 +307,60 @@ class SimpleAuthenticator:
             margin: 12px 0;
         }
         </style>
-        
-        <div class="terms-overlay"></div>
-        <div class="terms-popup">
-            <div class="terms-title">📋 Terms and Conditions</div>
-            <div class="terms-content">
-                <p><strong>Please read and accept our terms to continue:</strong></p>
-                <ul class="terms-list">
-                    <li>✅ <strong>Age Requirement:</strong> You must be 18 years or older to use this service.</li>
-                    <li>✅ <strong>Uploaded Content:</strong> You own all photos you upload and are responsible for their content.</li>
-                    <li>✅ <strong>Prohibited Content:</strong> Do not upload illegal, offensive, or inappropriate images.</li>
-                    <li>✅ <strong>AI Processing:</strong> Your photos will be processed using Google Gemini AI technology.</li>
-                    <li>✅ <strong>Data Privacy:</strong> We do not store your images permanently after processing.</li>
-                    <li>✅ <strong>Account Security:</strong> You are responsible for maintaining your account credentials.</li>
-                    <li>✅ <strong>Fair Use:</strong> This service is for personal, non-commercial use only.</li>
-                    <li>✅ <strong>API Limits:</strong> Usage may be subject to rate limits based on API availability.</li>
-                    <li>✅ <strong>No Guarantees:</strong> AI results may vary and are not guaranteed to be perfect.</li>
-                    <li>✅ <strong>Right to Modify:</strong> We may update features or terms at any time.</li>
-                    <li>✅ <strong>No Liability:</strong> We are not liable for any misuse or issues arising from the service.</li>
-                    <li>✅ <strong>Acceptance:</strong> By clicking "I Accept", you agree to all terms stated above.</li>
-                </ul>
-                <p style="margin-top: 20px; font-size: 0.9em; color: #6b7280;">
-                    Last updated: December 2024
-                </p>
-            </div>
-        </div>
         """, unsafe_allow_html=True)
         
-        st.markdown("")
-        st.markdown("")
+        # Create container for popup
+        st.markdown('<div class="terms-overlay"></div>', unsafe_allow_html=True)
         
-        # Buttons centered
-        col1, col2, col3, col4, col5 = st.columns([1, 1, 1, 1, 1])
-        
-        with col2:
-            if st.button("❌ Decline", use_container_width=True, type="secondary"):
-                st.session_state.show_terms = False
-                st.session_state.pop('pending_username', None)
-                st.warning("You must accept the terms to use this service.")
-                st.rerun()
-        
-        with col4:
-            if st.button("✅ I Accept", use_container_width=True, type="primary"):
-                # Complete login
-                st.session_state.authenticated = True
-                st.session_state.username = st.session_state.pending_username
-                st.session_state.login_time = datetime.now()
-                st.session_state.show_terms = False
-                st.session_state.pop('pending_username', None)
-                st.success("✅ Terms accepted! Welcome!")
-                st.rerun()
+        # Use a container to ensure everything stays together
+        with st.container():
+            st.markdown("""
+            <div class="terms-popup">
+                <div class="terms-title">📋 Terms and Conditions</div>
+                <div class="terms-content">
+                    <p><strong>Please read and accept our terms to continue:</strong></p>
+                    <ul class="terms-list">
+                        <li>✅ <strong>Age Requirement:</strong> You must be 18 years or older to use this service.</li>
+                        <li>✅ <strong>Uploaded Content:</strong> You own all photos you upload and are responsible for their content.</li>
+                        <li>✅ <strong>Prohibited Content:</strong> Do not upload illegal, offensive, or inappropriate images.</li>
+                        <li>✅ <strong>AI Processing:</strong> Your photos will be processed using Google Gemini AI technology.</li>
+                        <li>✅ <strong>Data Privacy:</strong> We do not store your images permanently after processing.</li>
+                        <li>✅ <strong>Account Security:</strong> You are responsible for maintaining your account credentials.</li>
+                        <li>✅ <strong>Fair Use:</strong> This service is for personal, non-commercial use only.</li>
+                        <li>✅ <strong>API Limits:</strong> Usage may be subject to rate limits based on API availability.</li>
+                        <li>✅ <strong>No Guarantees:</strong> AI results may vary and are not guaranteed to be perfect.</li>
+                        <li>✅ <strong>Right to Modify:</strong> We may update features or terms at any time.</li>
+                        <li>✅ <strong>No Liability:</strong> We are not liable for any misuse or issues arising from the service.</li>
+                        <li>✅ <strong>Acceptance:</strong> By clicking "I Accept", you agree to all terms stated above.</li>
+                    </ul>
+                    <p style="margin-top: 20px; font-size: 0.9em; color: #6b7280;">
+                        Last updated: December 2024
+                    </p>
+                </div>
+            """, unsafe_allow_html=True)
+            
+            # Buttons inside the popup
+            col1, col2, col3 = st.columns([1, 1, 1])
+            
+            with col1:
+                if st.button("❌ Decline", use_container_width=True, type="secondary", key="decline_terms"):
+                    st.session_state.show_terms = False
+                    st.session_state.pop('pending_username', None)
+                    st.warning("You must accept the terms to use this service.")
+                    st.rerun()
+            
+            with col3:
+                if st.button("✅ I Accept", use_container_width=True, type="primary", key="accept_terms"):
+                    # Complete login
+                    st.session_state.authenticated = True
+                    st.session_state.username = st.session_state.pending_username
+                    st.session_state.login_time = datetime.now()
+                    st.session_state.show_terms = False
+                    st.session_state.pop('pending_username', None)
+                    st.success("✅ Terms accepted! Welcome!")
+                    st.rerun()
+            
+            st.markdown('</div>', unsafe_allow_html=True)
     
     def logout(self):
         """Logout user"""
