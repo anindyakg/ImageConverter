@@ -82,7 +82,7 @@ class SimpleAuthenticator:
             <style>
             .login-container {
                 max-width: 450px;
-                margin: 80px auto;
+                margin: 20px auto;
                 padding: 40px;
                 background: white;
                 border-radius: 16px;
@@ -101,16 +101,182 @@ class SimpleAuthenticator:
                 margin-bottom: 30px;
                 text-align: center;
             }
+            .banner-container {
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                padding: 50px 30px;
+                border-radius: 20px;
+                margin: 20px auto 40px auto;
+                max-width: 1200px;
+                box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+            }
+            .banner-title {
+                color: white;
+                font-size: 3em;
+                font-weight: bold;
+                text-align: center;
+                margin-bottom: 15px;
+                text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+            }
+            .banner-subtitle {
+                color: #f0f0f0;
+                font-size: 1.3em;
+                text-align: center;
+                margin-bottom: 35px;
+                font-weight: 300;
+            }
+            .features-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+                gap: 20px;
+                margin-top: 30px;
+            }
+            .feature-card {
+                background: rgba(255, 255, 255, 0.15);
+                backdrop-filter: blur(10px);
+                padding: 20px;
+                border-radius: 12px;
+                border: 1px solid rgba(255, 255, 255, 0.2);
+                transition: transform 0.3s ease;
+            }
+            .feature-card:hover {
+                transform: translateY(-5px);
+                background: rgba(255, 255, 255, 0.2);
+            }
+            .feature-icon {
+                font-size: 2.5em;
+                margin-bottom: 10px;
+                display: block;
+            }
+            .feature-title {
+                color: white;
+                font-size: 1.1em;
+                font-weight: 600;
+                margin-bottom: 8px;
+            }
+            .feature-desc {
+                color: #e0e0e0;
+                font-size: 0.9em;
+                line-height: 1.4;
+            }
+            .demo-section {
+                text-align: center;
+                margin: 30px auto;
+                max-width: 900px;
+            }
+            .demo-title {
+                font-size: 1.8em;
+                color: #1f2937;
+                margin-bottom: 25px;
+                font-weight: 600;
+            }
+            .step-box {
+                background: linear-gradient(135deg, #f0f4ff 0%, #e6f0ff 100%);
+                padding: 20px;
+                border-radius: 12px;
+                border-left: 4px solid #667eea;
+                margin: 10px;
+            }
+            .step-number {
+                font-size: 2em;
+                color: #667eea;
+                font-weight: bold;
+            }
+            .step-text {
+                color: #1f2937;
+                font-size: 1em;
+                font-weight: 500;
+            }
             </style>
         """, unsafe_allow_html=True)
+        
+        # Banner Section
+        st.markdown("""
+            <div class="banner-container">
+                <div class="banner-title">📸 Photo Converter Pro</div>
+                <div class="banner-subtitle">Transform Your Photos with AI-Powered Magic</div>
+                
+                <div class="features-grid">
+                    <div class="feature-card">
+                        <span class="feature-icon">🎨</span>
+                        <div class="feature-title">24 Style Variations</div>
+                        <div class="feature-desc">Choose from Passport, Professional, Artistic, Vintage, Modern, and Fun styles - each with 4 unique variations</div>
+                    </div>
+                    
+                    <div class="feature-card">
+                        <span class="feature-icon">🤖</span>
+                        <div class="feature-title">AI Age Detection & Transform</div>
+                        <div class="feature-desc">Automatically detect age and transform to any age range - from Child to Elderly with realistic results</div>
+                    </div>
+                    
+                    <div class="feature-card">
+                        <span class="feature-icon">✨</span>
+                        <div class="feature-title">Professional Enhancements</div>
+                        <div class="feature-desc">Enhance skin texture, whiten teeth, brighten eyes, remove grey hair, and more with AI precision</div>
+                    </div>
+                    
+                    <div class="feature-card">
+                        <span class="feature-icon">🖼️</span>
+                        <div class="feature-title">Custom Backgrounds</div>
+                        <div class="feature-desc">Replace any background with your choice - perfect for professional photos and creative projects</div>
+                    </div>
+                    
+                    <div class="feature-card">
+                        <span class="feature-icon">⚡</span>
+                        <div class="feature-title">Batch Processing</div>
+                        <div class="feature-desc">Upload and edit multiple photos at once - save time and maintain consistency across images</div>
+                    </div>
+                    
+                    <div class="feature-card">
+                        <span class="feature-icon">📥</span>
+                        <div class="feature-title">Easy Download</div>
+                        <div class="feature-desc">Download individual images or all at once in a convenient ZIP file - your choice!</div>
+                    </div>
+                </div>
+            </div>
+        """, unsafe_allow_html=True)
+        
+        # How it works section
+        st.markdown('<div class="demo-section"><div class="demo-title">🚀 How It Works</div></div>', unsafe_allow_html=True)
+        
+        col_demo1, col_demo2, col_demo3 = st.columns(3)
+        
+        with col_demo1:
+            st.markdown("""
+                <div class="step-box">
+                    <div class="step-number">1️⃣</div>
+                    <div class="step-text">Upload Photos</div>
+                    <div class="feature-desc">Batch upload multiple images for processing</div>
+                </div>
+            """, unsafe_allow_html=True)
+        
+        with col_demo2:
+            st.markdown("""
+                <div class="step-box">
+                    <div class="step-number">2️⃣</div>
+                    <div class="step-text">Choose Style & Edit</div>
+                    <div class="feature-desc">Select from 24 AI variations and enhancements</div>
+                </div>
+            """, unsafe_allow_html=True)
+        
+        with col_demo3:
+            st.markdown("""
+                <div class="step-box">
+                    <div class="step-number">3️⃣</div>
+                    <div class="step-text">Download Results</div>
+                    <div class="feature-desc">Get your professionally edited photos instantly</div>
+                </div>
+            """, unsafe_allow_html=True)
+        
+        st.markdown("---")
+        st.markdown("")
         
         col1, col2, col3 = st.columns([1, 3, 1])
         
         with col2:
             st.markdown('<div class="login-container">', unsafe_allow_html=True)
             
-            st.markdown("### 🔐 Sign In")
-            st.markdown("Enter your credentials to continue")
+            st.markdown("### 🔐 Sign In to Get Started")
+            st.markdown("Create a free account or login to access all features")
             st.markdown("")
             
             # Create tabs for login and signup
@@ -160,7 +326,7 @@ class SimpleAuthenticator:
                                 st.error(f"❌ {message}")
             
             st.markdown("---")
-            st.caption("🔒 Your data is secure and encrypted")
+            st.caption("🔒 Your data is secure and encrypted | 🌟 Powered by Google Gemini AI")
             
             st.markdown('</div>', unsafe_allow_html=True)
         
