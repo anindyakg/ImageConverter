@@ -82,17 +82,30 @@ class SimpleAuthenticator:
     def login_form(self):
         """Display login form"""
         
-        # Hero banner
+        # Hero banner - 50% smaller
         st.markdown("""
         <div style='background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
-                    padding: 50px 30px; border-radius: 20px; margin: 20px auto 40px auto; 
-                    text-align: center; box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);'>
-            <h1 style='color: white; font-size: 3em; margin-bottom: 15px; text-shadow: 2px 2px 4px rgba(0,0,0,0.2);'>
+                    padding: 25px 15px; border-radius: 15px; margin: 10px auto 20px auto; 
+                    text-align: center; box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);'>
+            <h1 style='color: white; font-size: 1.5em; margin-bottom: 8px; text-shadow: 2px 2px 4px rgba(0,0,0,0.2);'>
                 📸 Photo Converter Pro
             </h1>
-            <p style='color: #f0f0f0; font-size: 1.3em; margin-bottom: 0;'>
+            <p style='color: #f0f0f0; font-size: 0.65em; margin-bottom: 0;'>
                 Transform Your Photos with AI-Powered Magic
             </p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # Sign In button that scrolls to login form
+        st.markdown("""
+        <div style='text-align: center; margin: 20px auto;'>
+            <a href='#sign-in-form' style='text-decoration: none;'>
+                <button style='background: #7c3aed; color: white; border: none; 
+                              padding: 12px 40px; border-radius: 8px; font-size: 1em; 
+                              font-weight: 600; cursor: pointer; box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3);'>
+                    🔐 Sign In
+                </button>
+            </a>
         </div>
         """, unsafe_allow_html=True)
         
@@ -175,9 +188,9 @@ class SimpleAuthenticator:
                 <div class="feature-desc-small">Custom settings</div>
             </div>
             <div class="feature-box-small">
-                <div class="feature-icon-small">⚡</div>
-                <div class="feature-title-small">Batch Mode</div>
-                <div class="feature-desc-small">Multiple photos</div>
+                <div class="feature-icon-small">🧠</div>
+                <div class="feature-title-small">Accessible</div>
+                <div class="feature-desc-small">Neurodivergent friendly</div>
             </div>
             <div class="feature-box-small">
                 <div class="feature-icon-small">📥</div>
@@ -207,7 +220,9 @@ class SimpleAuthenticator:
         st.markdown("---")
         st.markdown("")
         
-        # Login form - NO signup tab
+        # Login form anchor - NO signup tab
+        st.markdown("<div id='sign-in-form'></div>", unsafe_allow_html=True)
+        
         col1, col2, col3 = st.columns([1, 2, 1])
         
         with col2:
