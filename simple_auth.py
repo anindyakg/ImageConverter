@@ -96,79 +96,96 @@ class SimpleAuthenticator:
         </div>
         """, unsafe_allow_html=True)
         
-        # Features section
+        # Features section with responsive grid (6 in a row on desktop, 2 on mobile)
+        st.markdown("""
+        <style>
+        @media (min-width: 1024px) {
+            .feature-grid {
+                display: grid;
+                grid-template-columns: repeat(6, 1fr);
+                gap: 8px;
+                margin: 20px 0;
+            }
+        }
+        @media (min-width: 768px) and (max-width: 1023px) {
+            .feature-grid {
+                display: grid;
+                grid-template-columns: repeat(3, 1fr);
+                gap: 10px;
+                margin: 20px 0;
+            }
+        }
+        @media (max-width: 767px) {
+            .feature-grid {
+                display: grid;
+                grid-template-columns: repeat(2, 1fr);
+                gap: 10px;
+                margin: 20px 0;
+            }
+        }
+        .feature-box-small {
+            background: linear-gradient(135deg, #f0f4ff 0%, #e6f0ff 100%);
+            padding: 12px;
+            border-radius: 10px;
+            border-left: 3px solid #667eea;
+            text-align: center;
+            min-height: 90px;
+        }
+        .feature-icon-small {
+            font-size: 1.8em;
+            margin-bottom: 6px;
+        }
+        .feature-title-small {
+            font-weight: 600;
+            color: #1f2937;
+            font-size: 0.85em;
+            margin-bottom: 4px;
+        }
+        .feature-desc-small {
+            color: #6b7280;
+            font-size: 0.7em;
+            line-height: 1.3;
+        }
+        </style>
+        """, unsafe_allow_html=True)
+        
         st.markdown("### ✨ Powerful Features")
-        st.markdown("")
         
-        col1, col2, col3 = st.columns(3)
-        
-        with col1:
-            st.markdown("""
-            <div style='background: linear-gradient(135deg, #f0f4ff 0%, #e6f0ff 100%); 
-                        padding: 20px; border-radius: 12px; border-left: 4px solid #667eea; 
-                        margin: 10px 0; min-height: 140px;'>
-                <div style='font-size: 2.5em; margin-bottom: 10px;'>🎨</div>
-                <div style='font-weight: 600; color: #1f2937; margin-bottom: 8px; font-size: 1.1em;'>24 Style Variations</div>
-                <div style='color: #6b7280; font-size: 0.9em;'>Passport, Professional, Artistic & More</div>
+        # All 6 features in responsive grid
+        st.markdown("""
+        <div class="feature-grid">
+            <div class="feature-box-small">
+                <div class="feature-icon-small">🎨</div>
+                <div class="feature-title-small">24 Styles</div>
+                <div class="feature-desc-small">Multiple variations</div>
             </div>
-            """, unsafe_allow_html=True)
-            
-        with col2:
-            st.markdown("""
-            <div style='background: linear-gradient(135deg, #f0f4ff 0%, #e6f0ff 100%); 
-                        padding: 20px; border-radius: 12px; border-left: 4px solid #667eea; 
-                        margin: 10px 0; min-height: 140px;'>
-                <div style='font-size: 2.5em; margin-bottom: 10px;'>🤖</div>
-                <div style='font-weight: 600; color: #1f2937; margin-bottom: 8px; font-size: 1.1em;'>AI Age Detection</div>
-                <div style='color: #6b7280; font-size: 0.9em;'>Transform to Any Age Range</div>
+            <div class="feature-box-small">
+                <div class="feature-icon-small">🤖</div>
+                <div class="feature-title-small">AI Age</div>
+                <div class="feature-desc-small">Any age range</div>
             </div>
-            """, unsafe_allow_html=True)
-            
-        with col3:
-            st.markdown("""
-            <div style='background: linear-gradient(135deg, #f0f4ff 0%, #e6f0ff 100%); 
-                        padding: 20px; border-radius: 12px; border-left: 4px solid #667eea; 
-                        margin: 10px 0; min-height: 140px;'>
-                <div style='font-size: 2.5em; margin-bottom: 10px;'>✨</div>
-                <div style='font-weight: 600; color: #1f2937; margin-bottom: 8px; font-size: 1.1em;'>Pro Enhancements</div>
-                <div style='color: #6b7280; font-size: 0.9em;'>Skin, Hair, Eyes & More</div>
+            <div class="feature-box-small">
+                <div class="feature-icon-small">✨</div>
+                <div class="feature-title-small">Enhancements</div>
+                <div class="feature-desc-small">Skin, hair, eyes</div>
             </div>
-            """, unsafe_allow_html=True)
-        
-        col4, col5, col6 = st.columns(3)
-        
-        with col4:
-            st.markdown("""
-            <div style='background: linear-gradient(135deg, #f0f4ff 0%, #e6f0ff 100%); 
-                        padding: 20px; border-radius: 12px; border-left: 4px solid #667eea; 
-                        margin: 10px 0; min-height: 140px;'>
-                <div style='font-size: 2.5em; margin-bottom: 10px;'>🖼️</div>
-                <div style='font-weight: 600; color: #1f2937; margin-bottom: 8px; font-size: 1.1em;'>Custom Backgrounds</div>
-                <div style='color: #6b7280; font-size: 0.9em;'>Replace Any Background</div>
+            <div class="feature-box-small">
+                <div class="feature-icon-small">🖼️</div>
+                <div class="feature-title-small">Backgrounds</div>
+                <div class="feature-desc-small">Custom settings</div>
             </div>
-            """, unsafe_allow_html=True)
-            
-        with col5:
-            st.markdown("""
-            <div style='background: linear-gradient(135deg, #f0f4ff 0%, #e6f0ff 100%); 
-                        padding: 20px; border-radius: 12px; border-left: 4px solid #667eea; 
-                        margin: 10px 0; min-height: 140px;'>
-                <div style='font-size: 2.5em; margin-bottom: 10px;'>⚡</div>
-                <div style='font-weight: 600; color: #1f2937; margin-bottom: 8px; font-size: 1.1em;'>Batch Processing</div>
-                <div style='color: #6b7280; font-size: 0.9em;'>Edit Multiple Photos</div>
+            <div class="feature-box-small">
+                <div class="feature-icon-small">⚡</div>
+                <div class="feature-title-small">Batch Mode</div>
+                <div class="feature-desc-small">Multiple photos</div>
             </div>
-            """, unsafe_allow_html=True)
-            
-        with col6:
-            st.markdown("""
-            <div style='background: linear-gradient(135deg, #f0f4ff 0%, #e6f0ff 100%); 
-                        padding: 20px; border-radius: 12px; border-left: 4px solid #667eea; 
-                        margin: 10px 0; min-height: 140px;'>
-                <div style='font-size: 2.5em; margin-bottom: 10px;'>📥</div>
-                <div style='font-weight: 600; color: #1f2937; margin-bottom: 8px; font-size: 1.1em;'>Easy Download</div>
-                <div style='color: #6b7280; font-size: 0.9em;'>Individual or Bulk ZIP</div>
+            <div class="feature-box-small">
+                <div class="feature-icon-small">📥</div>
+                <div class="feature-title-small">Download</div>
+                <div class="feature-desc-small">Individual or ZIP</div>
             </div>
-            """, unsafe_allow_html=True)
+        </div>
+        """, unsafe_allow_html=True)
         
         st.markdown("")
         
@@ -190,62 +207,36 @@ class SimpleAuthenticator:
         st.markdown("---")
         st.markdown("")
         
-        # Login form
+        # Login form - NO signup tab
         col1, col2, col3 = st.columns([1, 2, 1])
         
         with col2:
-            st.markdown("### 🔐 Sign In to Get Started")
-            st.caption("Create a free account or login to access all features")
+            st.markdown("### 🔐 Sign In")
+            st.caption("Login to access all features")
             st.markdown("")
             
-            # Create tabs for login and signup
-            tab1, tab2 = st.tabs(["Login", "Sign Up"])
-            
-            with tab1:
-                with st.form("login_form"):
-                    username = st.text_input("Username", key="login_username")
-                    password = st.text_input("Password", type="password", key="login_password")
-                    remember_me = st.checkbox("Remember me")
-                    
-                    submit = st.form_submit_button("Sign In", use_container_width=True)
-                    
-                    if submit:
-                        if not username or not password:
-                            st.error("Please enter both username and password")
-                        elif self.verify_credentials(username, password):
-                            st.session_state.authenticated = True
-                            st.session_state.username = username
-                            st.session_state.login_time = datetime.now()
-                            st.success("✅ Login successful!")
-                            st.rerun()
-                        else:
-                            st.error("❌ Invalid username or password")
-            
-            with tab2:
-                with st.form("signup_form"):
-                    new_username = st.text_input("Choose Username", key="signup_username")
-                    new_password = st.text_input("Choose Password", type="password", key="signup_password")
-                    confirm_password = st.text_input("Confirm Password", type="password", key="confirm_password")
-                    
-                    signup = st.form_submit_button("Create Account", use_container_width=True)
-                    
-                    if signup:
-                        if not new_username or not new_password:
-                            st.error("Please fill in all fields")
-                        elif len(new_password) < 6:
-                            st.error("Password must be at least 6 characters")
-                        elif new_password != confirm_password:
-                            st.error("Passwords do not match")
-                        else:
-                            success, message = self.add_user(new_username, new_password)
-                            if success:
-                                st.success(f"✅ {message}")
-                                st.info("You can now login with your credentials")
-                            else:
-                                st.error(f"❌ {message}")
+            # Single login form (no tabs, no signup)
+            with st.form("login_form"):
+                username = st.text_input("Username", key="login_username")
+                password = st.text_input("Password", type="password", key="login_password")
+                remember_me = st.checkbox("Remember me")
+                
+                submit = st.form_submit_button("Sign In", use_container_width=True)
+                
+                if submit:
+                    if not username or not password:
+                        st.error("Please enter both username and password")
+                    elif self.verify_credentials(username, password):
+                        st.session_state.authenticated = True
+                        st.session_state.username = username
+                        st.session_state.login_time = datetime.now()
+                        st.success("✅ Login successful!")
+                        st.rerun()
+                    else:
+                        st.error("❌ Invalid username or password")
             
             st.markdown("---")
-            st.caption("🔒 Your data is secure and encrypted | 🌟 Powered by Google Gemini AI")
+            st.caption("🔒 Your data is secure and encrypted")
         
         st.stop()
     
