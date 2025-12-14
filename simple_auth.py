@@ -86,13 +86,13 @@ class SimpleAuthenticator:
         if st.session_state.get('show_terms', False):
             self._show_terms_popup()
         
-        # Hero banner - 50% smaller
+        # Hero banner - 50% smaller with Beta version
         st.markdown("""
         <div style='background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
                     padding: 25px 15px; border-radius: 15px; margin: 10px auto 20px auto; 
                     text-align: center; box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);'>
             <h1 style='color: white; font-size: 1.5em; margin-bottom: 8px; text-shadow: 2px 2px 4px rgba(0,0,0,0.2);'>
-                📸 Photo Converter Pro
+                📸 Photo Converter Pro <span style='font-size: 0.5em; background: rgba(255,255,255,0.3); padding: 3px 8px; border-radius: 5px;'>Beta 1.0</span>
             </h1>
             <p style='color: #f0f0f0; font-size: 0.65em; margin-bottom: 0;'>
                 Transform Your Photos with AI-Powered Magic
@@ -232,6 +232,7 @@ class SimpleAuthenticator:
         with col2:
             st.markdown("### 🔐 Sign In")
             st.caption("Login to access all features")
+            st.info("📧 Need a trial account? Reach out to **contact@photoconverter.org**")
             st.markdown("")
             
             # Single login form (no tabs, no signup)
