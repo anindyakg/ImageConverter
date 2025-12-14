@@ -82,6 +82,11 @@ class SimpleAuthenticator:
     def login_form(self):
         """Display login form"""
         
+        # Check if user just logged in and needs to accept T&C
+        if st.session_state.get('show_terms', False):
+            self._show_terms_and_conditions()
+            return
+        
         # Hero banner - 50% smaller
         st.markdown("""
         <div style='background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
@@ -242,10 +247,9 @@ class SimpleAuthenticator:
                     if not username or not password:
                         st.error("Please enter both username and password")
                     elif self.verify_credentials(username, password):
-                        st.session_state.authenticated = True
-                        st.session_state.username = username
-                        st.session_state.login_time = datetime.now()
-                        st.success("✅ Login successful!")
+                        # Set flag to show T&C popup
+                        st.session_state.show_terms = True
+                        st.session_state.pending_username = username
                         st.rerun()
                     else:
                         st.error("❌ Invalid username or password")
@@ -254,6 +258,104 @@ class SimpleAuthenticator:
             st.caption("🔒 Your data is secure and encrypted")
         
         st.stop()
+    
+    def _show_terms_and_conditions(self):
+        """Display Terms and Conditions popup"""
+        st.markdown("""
+        <style>
+        .terms-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 9998;
+        }
+        .terms-popup {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+            max-width: 700px;
+            max-height: 80vh;
+            overflow-y: auto;
+            z-index: 9999;
+        }
+        .terms-title {
+            color: #1f2937;
+            font-size: 1.8em;
+            font-weight: 700;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .terms-content {
+            color: #4b5563;
+            font-size: 0.95em;
+            line-height: 1.6;
+        }
+        .terms-list {
+            margin: 20px 0;
+            padding-left: 20px;
+        }
+        .terms-list li {
+            margin: 12px 0;
+        }
+        </style>
+        
+        <div class="terms-overlay"></div>
+        <div class="terms-popup">
+            <div class="terms-title">📋 Terms and Conditions</div>
+            <div class="terms-content">
+                <p><strong>Please read and accept our terms to continue:</strong></p>
+                <ul class="terms-list">
+                    <li>✅ <strong>Age Requirement:</strong> You must be 18 years or older to use this service.</li>
+                    <li>✅ <strong>Uploaded Content:</strong> You own all photos you upload and are responsible for their content.</li>
+                    <li>✅ <strong>Prohibited Content:</strong> Do not upload illegal, offensive, or inappropriate images.</li>
+                    <li>✅ <strong>AI Processing:</strong> Your photos will be processed using Google Gemini AI technology.</li>
+                    <li>✅ <strong>Data Privacy:</strong> We do not store your images permanently after processing.</li>
+                    <li>✅ <strong>Account Security:</strong> You are responsible for maintaining your account credentials.</li>
+                    <li>✅ <strong>Fair Use:</strong> This service is for personal, non-commercial use only.</li>
+                    <li>✅ <strong>API Limits:</strong> Usage may be subject to rate limits based on API availability.</li>
+                    <li>✅ <strong>No Guarantees:</strong> AI results may vary and are not guaranteed to be perfect.</li>
+                    <li>✅ <strong>Right to Modify:</strong> We may update features or terms at any time.</li>
+                    <li>✅ <strong>No Liability:</strong> We are not liable for any misuse or issues arising from the service.</li>
+                    <li>✅ <strong>Acceptance:</strong> By clicking "I Accept", you agree to all terms stated above.</li>
+                </ul>
+                <p style="margin-top: 20px; font-size: 0.9em; color: #6b7280;">
+                    Last updated: December 2024
+                </p>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        st.markdown("")
+        st.markdown("")
+        
+        # Buttons centered
+        col1, col2, col3, col4, col5 = st.columns([1, 1, 1, 1, 1])
+        
+        with col2:
+            if st.button("❌ Decline", use_container_width=True, type="secondary"):
+                st.session_state.show_terms = False
+                st.session_state.pop('pending_username', None)
+                st.warning("You must accept the terms to use this service.")
+                st.rerun()
+        
+        with col4:
+            if st.button("✅ I Accept", use_container_width=True, type="primary"):
+                # Complete login
+                st.session_state.authenticated = True
+                st.session_state.username = st.session_state.pending_username
+                st.session_state.login_time = datetime.now()
+                st.session_state.show_terms = False
+                st.session_state.pop('pending_username', None)
+                st.success("✅ Terms accepted! Welcome!")
+                st.rerun()
     
     def logout(self):
         """Logout user"""
