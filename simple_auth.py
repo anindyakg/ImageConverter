@@ -265,6 +265,30 @@ class SimpleAuthenticator:
         """Alias for require_auth - for backwards compatibility"""
         return self.require_auth()
     
+    def show_user_info(self, location='sidebar'):
+        """Display user info with logout button"""
+        if location == 'sidebar':
+            with st.sidebar:
+                st.markdown("---")
+                st.markdown(f"**👤 Logged in as:** {st.session_state.username}")
+                if st.session_state.login_time:
+                    login_time = st.session_state.login_time.strftime("%Y-%m-%d %H:%M")
+                    st.caption(f"🕒 Login time: {login_time}")
+                
+                if st.button("🚪 Logout", use_container_width=True):
+                    self.logout()
+                    st.rerun()
+        else:
+            # Main area display
+            st.markdown("---")
+            col1, col2 = st.columns([3, 1])
+            with col1:
+                st.markdown(f"**👤 Logged in as:** {st.session_state.username}")
+            with col2:
+                if st.button("🚪 Logout"):
+                    self.logout()
+                    st.rerun()
+    
     def get_username(self):
         """Get current username"""
         return st.session_state.username
