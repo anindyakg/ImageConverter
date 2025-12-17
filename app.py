@@ -1157,34 +1157,44 @@ if st.session_state.username == 'admin':
                     elif len(new_password) < 6:
                         st.error("❌ Password must be at least 6 characters")
                     else:
-                        if account_type == "Temporary (Trial)":
-                            success, message, expiry = auth.add_trial_user(
-                                new_username, 
-                                new_password, 
-                                trial_hours=trial_hours
-                            )
-                        else:
-                            success, message, expiry = auth.add_user(
-                                new_username, 
-                                new_password, 
-                                expiry_hours=None
-                            )
-                        
-                        if success:
-                            st.success(f"✅ {message}")
-                            st.balloons()
-                        else:
-                            st.error(f"❌ {message}")
+                        try:
+                            if account_type == "Temporary (Trial)":
+                                success, message, expiry = auth.add_trial_user(
+                                    new_username, 
+                                    new_password, 
+                                    trial_hours=trial_hours
+                                )
+                            else:
+                                success, message, expiry = auth.add_user(
+                                    new_username, 
+                                    new_password, 
+                                    expiry_hours=None
+                                )
+                            
+                            if success:
+                                st.success(f"✅ {message}")
+                                st.balloons()
+                            else:
+                                st.error(f"❌ {message}")
+                        except Exception as e:
+                            st.error(f"❌ Error creating user: {str(e)}")
         
         with col_right:
             st.subheader("⏰ Extend User Account")
             
             # Get list of users with expiry
             users_with_expiry = []
-            for username in auth.credentials.keys():
-                info = auth.get_account_info(username)
-                if info and info['has_expiry'] and not info['is_expired']:
-                    users_with_expiry.append(username)
+            try:
+                for username in auth.credentials.keys():
+                    try:
+                        info = auth.get_account_info(username)
+                        if info and info['has_expiry'] and not info['is_expired']:
+                            users_with_expiry.append(username)
+                    except Exception as e:
+                        # Skip users with format issues
+                        continue
+            except Exception as e:
+                st.error(f"Error loading users: {str(e)}")
             
             if users_with_expiry:
                 with st.form("extend_user_form"):
@@ -1196,10 +1206,13 @@ if st.session_state.username == 'admin':
                     
                     # Show current expiry
                     if extend_username:
-                        user_info = auth.get_account_info(extend_username)
-                        st.info(f"**Current Status:**\n\n"
-                               f"⏰ Time remaining: {user_info['time_remaining']}\n\n"
-                               f"📅 Expires: {user_info['expiry_time']}")
+                        try:
+                            user_info = auth.get_account_info(extend_username)
+                            st.info(f"**Current Status:**\n\n"
+                                   f"⏰ Time remaining: {user_info['time_remaining']}\n\n"
+                                   f"📅 Expires: {user_info['expiry_time']}")
+                        except Exception as e:
+                            st.warning(f"Could not load user info: {str(e)}")
                     
                     extend_hours = st.number_input(
                         "Additional Hours",
@@ -1212,11 +1225,14 @@ if st.session_state.username == 'admin':
                     submit_extend = st.form_submit_button("⏰ Extend Account", use_container_width=True, type="primary")
                     
                     if submit_extend:
-                        success, message = auth.extend_account(extend_username, extend_hours)
-                        if success:
-                            st.success(f"✅ {message}")
-                        else:
-                            st.error(f"❌ {message}")
+                        try:
+                            success, message = auth.extend_account(extend_username, extend_hours)
+                            if success:
+                                st.success(f"✅ {message}")
+                            else:
+                                st.error(f"❌ {message}")
+                        except Exception as e:
+                            st.error(f"❌ Error extending account: {str(e)}")
             else:
                 st.info("ℹ️ No active trial accounts to extend")
         
@@ -1227,10 +1243,18 @@ if st.session_state.username == 'admin':
         
         # Get all users
         all_users = []
-        for username in auth.credentials.keys():
-            info = auth.get_account_info(username)
-            if info:
-                all_users.append(info)
+        try:
+            for username in auth.credentials.keys():
+                try:
+                    info = auth.get_account_info(username)
+                    if info:
+                        all_users.append(info)
+                except Exception as e:
+                    # Skip users with issues and show warning
+                    st.warning(f"⚠️ Could not load info for user '{username}': {str(e)}")
+                    continue
+        except Exception as e:
+            st.error(f"Error loading user list: {str(e)}")
         
         if all_users:
             # Create a table view
@@ -1266,25 +1290,28 @@ if st.session_state.username == 'admin':
         # Quick stats
         st.subheader("📊 Quick Statistics")
         
-        total_users = len(auth.credentials)
-        trial_users = len([u for u in all_users if u['has_expiry']])
-        permanent_users = total_users - trial_users
-        expired_users = len([u for u in all_users if u['is_expired']])
-        active_trial_users = len([u for u in all_users if u['has_expiry'] and not u['is_expired']])
-        
-        col_stat1, col_stat2, col_stat3, col_stat4 = st.columns(4)
-        
-        with col_stat1:
-            st.metric("Total Users", total_users)
-        
-        with col_stat2:
-            st.metric("Active Trials", active_trial_users)
-        
-        with col_stat3:
-            st.metric("Permanent", permanent_users)
-        
-        with col_stat4:
-            st.metric("Expired", expired_users)
+        try:
+            total_users = len(auth.credentials)
+            trial_users = len([u for u in all_users if u['has_expiry']])
+            permanent_users = total_users - trial_users
+            expired_users = len([u for u in all_users if u['is_expired']])
+            active_trial_users = len([u for u in all_users if u['has_expiry'] and not u['is_expired']])
+            
+            col_stat1, col_stat2, col_stat3, col_stat4 = st.columns(4)
+            
+            with col_stat1:
+                st.metric("Total Users", total_users)
+            
+            with col_stat2:
+                st.metric("Active Trials", active_trial_users)
+            
+            with col_stat3:
+                st.metric("Permanent", permanent_users)
+            
+            with col_stat4:
+                st.metric("Expired", expired_users)
+        except Exception as e:
+            st.error(f"Error calculating statistics: {str(e)}")
         
         st.markdown("---")
         st.info("💡 **Tip:** Trial accounts automatically expire and users will see an error message when trying to log in after expiration.")

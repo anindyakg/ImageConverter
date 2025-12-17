@@ -145,21 +145,41 @@ class SimpleAuthenticator:
             return None
         
         user_data = self.credentials[username]
+        
+        # Handle old format (string) vs new format (dict)
+        if isinstance(user_data, str):
+            # Old format - just a password hash string
+            # Convert to new format
+            self.credentials[username] = {
+                'password': user_data,
+                'expiry': None
+            }
+            self._save_credentials(self.credentials)
+            user_data = self.credentials[username]
+        
         info = {
             'username': username,
             'has_expiry': user_data.get('expiry') is not None
         }
         
         if user_data.get('expiry'):
-            expiry_datetime = datetime.fromisoformat(user_data['expiry'])
-            info['expiry_time'] = expiry_datetime.strftime("%Y-%m-%d %H:%M:%S")
-            info['is_expired'] = datetime.now() > expiry_datetime
-            
-            if not info['is_expired']:
-                time_remaining = expiry_datetime - datetime.now()
-                hours = int(time_remaining.total_seconds() // 3600)
-                minutes = int((time_remaining.total_seconds() % 3600) // 60)
-                info['time_remaining'] = f"{hours}h {minutes}m"
+            try:
+                expiry_datetime = datetime.fromisoformat(user_data['expiry'])
+                info['expiry_time'] = expiry_datetime.strftime("%Y-%m-%d %H:%M:%S")
+                info['is_expired'] = datetime.now() > expiry_datetime
+                
+                if not info['is_expired']:
+                    time_remaining = expiry_datetime - datetime.now()
+                    hours = int(time_remaining.total_seconds() // 3600)
+                    minutes = int((time_remaining.total_seconds() % 3600) // 60)
+                    info['time_remaining'] = f"{hours}h {minutes}m"
+                else:
+                    info['time_remaining'] = "Expired"
+            except Exception as e:
+                # If there's an error parsing the expiry, treat as no expiry
+                info['expiry_time'] = "Error parsing expiry"
+                info['is_expired'] = False
+                info['time_remaining'] = "Unknown"
         else:
             info['expiry_time'] = "Never (Permanent)"
             info['is_expired'] = False
