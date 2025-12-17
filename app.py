@@ -268,47 +268,66 @@ def generate_image_variation(image, style_name, variation_prompt, enhancements=N
         # Age transformation handling
         age_text = ""
         if preserve_age and detected_age:
-            age_text = f" CRITICAL AGE REQUIREMENT: The person must appear to be approximately {detected_age} years old, maintaining the exact same age appearance as in the original photo. Keep all age-related features like facial structure, skin texture, and overall maturity level consistent with age {detected_age}."
+            age_text = f" The person should appear to be approximately {detected_age} years old, maintaining the same age appearance as in the original photo."
         elif not preserve_age and target_age and target_age != "Same Age (No Change)":
             age_map = {
-                "Child (5-12 years)": "MANDATORY AGE TRANSFORMATION - transform the person to appear as a child between 5-12 years old WITH: youthful childlike facial features, very smooth unblemished skin, smaller facial proportions typical of children, innocent childlike expression, NO adult features whatsoever",
-                "Teenager (13-19 years)": "MANDATORY AGE TRANSFORMATION - transform the person to appear as a teenager between 13-19 years old WITH: adolescent facial features, clear youthful teenage skin, developing facial structure, youthful appearance, NO mature adult features",
-                "Young Adult (20-30 years)": "MANDATORY AGE TRANSFORMATION - transform the person to appear as a young adult between 20-30 years old WITH: mature but youthful features, clear skin with minimal signs of aging, young adult appearance",
-                "Adult (31-45 years)": "MANDATORY AGE TRANSFORMATION - transform the person to appear as an adult between 31-45 years old WITH: fully mature facial features, possible subtle fine lines, established facial character, mature adult appearance",
-                "Middle Age (46-60 years)": "MANDATORY AGE TRANSFORMATION - transform the person to appear middle-aged between 46-60 years old WITH: visible signs of aging including wrinkles, age lines, some grey hair, mature middle-aged appearance, NO youthful features",
-                "Senior (61-75 years)": "MANDATORY AGE TRANSFORMATION - transform the person to appear as a senior between 61-75 years old WITH: clear aging signs including wrinkles, grey or white hair, age spots, distinguished senior appearance, elderly features",
-                "Elderly (76+ years)": "MANDATORY AGE TRANSFORMATION - transform the person to appear elderly 76+ years old WITH: pronounced aging features, deep wrinkles, white/grey hair, aged skin texture, very mature elderly appearance, advanced age signs"
+                "Child (5-12 years)": "Transform the person to appear as a child (5-12 years old) with youthful, childlike features and smooth skin",
+                "Teenager (13-19 years)": "Transform the person to appear as a teenager (13-19 years old) with adolescent features and youthful appearance",
+                "Young Adult (20-30 years)": "Transform the person to appear as a young adult (20-30 years old) with mature but youthful features",
+                "Adult (31-45 years)": "Transform the person to appear as an adult (31-45 years old) with fully mature features",
+                "Middle Age (46-60 years)": "Transform the person to appear middle-aged (46-60 years old) with some visible aging signs",
+                "Senior (61-75 years)": "Transform the person to appear as a senior (61-75 years old) with clear aging signs and grey hair",
+                "Elderly (76+ years)": "Transform the person to appear elderly (76+ years old) with pronounced aging features and white hair"
             }
             if target_age in age_map:
-                age_text = f" {age_map[target_age]}. THIS AGE TRANSFORMATION IS ABSOLUTELY CRITICAL AND MUST BE APPLIED TO EVERY GENERATED IMAGE CONSISTENTLY."
+                age_text = f" {age_map[target_age]}."
         
         framing_text = ""
         if style_name == "professional":
-            framing_text = " CRITICAL FRAMING: Image must be framed from head to chest level only (professional headshot crop). Do not show full body. Proper portrait framing with shoulders and upper chest visible."
+            framing_text = " Frame from head to chest (professional headshot). Include shoulders and upper chest."
         elif style_name == "passport":
-            framing_text = " CRITICAL PASSPORT REQUIREMENTS: Image must show head and top of shoulders only. Face must be centered, looking directly at camera. Neutral expression (no smile). Plain background (white or light grey). No shadows on face or background. Both ears should be visible. Face should occupy 70-80% of frame. Professional government document photo standard. Remove any accessories like hats or sunglasses."
+            framing_text = " Passport photo format: head and top of shoulders only, face centered, neutral expression, plain background."
         
         # Custom background handling
         background_text = ""
         if custom_background is not None:
-            background_text = " CUSTOM BACKGROUND: Replace the background with the style and setting from the provided custom background image. Keep the person/subject from the original photo but place them in the new background environment. Blend naturally and maintain proper lighting and perspective."
+            background_text = " Replace the background with the environment from the custom background image provided."
             
             # Create prompt with custom background
-            prompt = f"Edit and transform this photo: {variation_prompt}.{framing_text}{age_text}{enhancement_text}{background_text} IMPORTANT: Keep the subject from the first image but replace the background with the environment from the second image. Keep all enhancements subtle and natural. Generate a high-quality transformed image."
+            prompt = f"Transform this photo: {variation_prompt}.{framing_text}{age_text}{enhancement_text}{background_text} Keep changes natural and subtle. Generate high-quality image."
             
             # Create model instance
             model = genai.GenerativeModel('gemini-2.5-flash-image-preview')
+            
+            # Configure safety settings
+            safety_settings = [
+                {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_ONLY_HIGH"},
+                {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_ONLY_HIGH"},
+                {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_ONLY_HIGH"},
+                {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_ONLY_HIGH"}
+            ]
             
             # Generate content with both images
-            response = model.generate_content([prompt, image, "Custom background reference:", custom_background])
+            response = model.generate_content(
+                [prompt, image, "Custom background reference:", custom_background],
+                safety_settings=safety_settings
+            )
         else:
-            prompt = f"Edit and transform this photo: {variation_prompt}.{framing_text}{age_text}{enhancement_text} IMPORTANT: Keep all enhancements subtle and natural. The result should look very close to the original photo, just enhanced and polished with the specified style applied. Do not make dramatic changes. Generate a high-quality transformed image."
+            prompt = f"Transform this photo: {variation_prompt}.{framing_text}{age_text}{enhancement_text} Keep changes subtle and natural. Generate high-quality image."
             
             # Create model instance
             model = genai.GenerativeModel('gemini-2.5-flash-image-preview')
             
+            # Configure safety settings
+            safety_settings = [
+                {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_ONLY_HIGH"},
+                {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_ONLY_HIGH"},
+                {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_ONLY_HIGH"},
+                {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_ONLY_HIGH"}
+            ]
+            
             # Generate content
-            response = model.generate_content([prompt, image])
+            response = model.generate_content([prompt, image], safety_settings=safety_settings)
         
         # Check for generated image in response
         if hasattr(response, 'parts') and response.parts:
@@ -321,12 +340,22 @@ def generate_image_variation(image, style_name, variation_prompt, enhancements=N
                     processed_image = convert_to_rgb(processed_image)
                     return processed_image
         
-        # If text response, show it
-        if hasattr(response, 'text') and response.text:
-            st.caption(f"AI Response: {response.text[:150]}...")
+        # Safe text response handling
+        try:
+            if response.candidates and len(response.candidates) > 0:
+                candidate = response.candidates[0]
+                if hasattr(candidate, 'content') and candidate.content.parts:
+                    for part in candidate.content.parts:
+                        if hasattr(part, 'text'):
+                            st.caption(f"AI Response: {part.text[:150]}...")
+                            break
+                elif hasattr(candidate, 'finish_reason'):
+                    st.warning(f"⚠️ Generation blocked. Reason: {candidate.finish_reason}")
+        except Exception as e:
+            st.warning(f"⚠️ Could not process response: {str(e)}")
         
         # Fallback: return original
-        st.warning("⚠️ No image generated in response. The model may only support text output currently.")
+        st.warning("⚠️ No image generated. Returning original photo.")
         return image
         
     except Exception as e:
@@ -374,19 +403,36 @@ def detect_age_from_image(image):
         # Upload image
         uploaded_file = genai.upload_file(img_byte_arr, mime_type="image/jpeg")
         
+        # Configure safety settings
+        safety_settings = [
+            {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_ONLY_HIGH"},
+            {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_ONLY_HIGH"},
+            {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_ONLY_HIGH"},
+            {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_ONLY_HIGH"}
+        ]
+        
         # Generate response
-        response = model.generate_content([prompt, uploaded_file])
+        response = model.generate_content([prompt, uploaded_file], safety_settings=safety_settings)
         
         # Clean up uploaded file
         genai.delete_file(uploaded_file.name)
         
-        # Extract age from response
-        age_text = response.text.strip()
-        # Extract first number found
-        import re
-        age_match = re.search(r'\d+', age_text)
-        if age_match:
-            return int(age_match.group())
+        # Safely extract age from response
+        try:
+            if response.candidates and len(response.candidates) > 0:
+                candidate = response.candidates[0]
+                if hasattr(candidate, 'content') and candidate.content.parts:
+                    for part in candidate.content.parts:
+                        if hasattr(part, 'text'):
+                            age_text = part.text.strip()
+                            # Extract first number found
+                            import re
+                            age_match = re.search(r'\d+', age_text)
+                            if age_match:
+                                return int(age_match.group())
+        except:
+            pass
+        
         return None
         
     except Exception as e:
@@ -473,8 +519,11 @@ with col_header2:
 
 st.markdown("---")
 
-# Main tabs
-tab1, tab2, tab3 = st.tabs(["📤 Upload & Edit", "🎨 Style Conversion", "📥 Download"])
+# Main tabs - add admin tab for admin users
+if st.session_state.username == 'admin':
+    tab1, tab2, tab3, tab_admin = st.tabs(["📤 Upload & Edit", "🎨 Style Conversion", "📥 Download", "👑 Admin Panel"])
+else:
+    tab1, tab2, tab3 = st.tabs(["📤 Upload & Edit", "🎨 Style Conversion", "📥 Download"])
 
 # TAB 1: Upload & Edit
 with tab1:
@@ -1057,6 +1106,188 @@ with tab3:
     
     if not st.session_state.edited_images and not st.session_state.generated_images:
         st.info("👈 Upload and edit images first to enable downloads")
+
+# TAB 4: Admin Panel (only visible to admin)
+if st.session_state.username == 'admin':
+    with tab_admin:
+        st.header("👑 Admin Panel - User Management")
+        
+        st.markdown("""
+        <div style='background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                    padding: 20px; border-radius: 10px; margin-bottom: 20px;'>
+            <h3 style='color: white; margin: 0;'>🔧 Administrator Tools</h3>
+            <p style='color: #f0f0f0; margin: 5px 0 0 0; font-size: 0.9em;'>
+                Create and manage user accounts with time-bound or permanent access
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # Two columns for admin functions
+        col_left, col_right = st.columns([1, 1])
+        
+        with col_left:
+            st.subheader("➕ Create New User")
+            
+            with st.form("create_user_form"):
+                new_username = st.text_input("Username", placeholder="e.g., trial_user1")
+                new_password = st.text_input("Password", type="password", placeholder="Secure password")
+                
+                account_type = st.radio(
+                    "Account Type",
+                    ["Temporary (Trial)", "Permanent"],
+                    help="Trial accounts expire after specified hours"
+                )
+                
+                if account_type == "Temporary (Trial)":
+                    trial_hours = st.number_input(
+                        "Trial Duration (hours)",
+                        min_value=1,
+                        max_value=720,  # 30 days max
+                        value=2,
+                        help="How many hours until account expires"
+                    )
+                else:
+                    trial_hours = None
+                
+                submit_create = st.form_submit_button("✅ Create User", use_container_width=True, type="primary")
+                
+                if submit_create:
+                    if not new_username or not new_password:
+                        st.error("❌ Please provide both username and password")
+                    elif len(new_password) < 6:
+                        st.error("❌ Password must be at least 6 characters")
+                    else:
+                        if account_type == "Temporary (Trial)":
+                            success, message, expiry = auth.add_trial_user(
+                                new_username, 
+                                new_password, 
+                                trial_hours=trial_hours
+                            )
+                        else:
+                            success, message, expiry = auth.add_user(
+                                new_username, 
+                                new_password, 
+                                expiry_hours=None
+                            )
+                        
+                        if success:
+                            st.success(f"✅ {message}")
+                            st.balloons()
+                        else:
+                            st.error(f"❌ {message}")
+        
+        with col_right:
+            st.subheader("⏰ Extend User Account")
+            
+            # Get list of users with expiry
+            users_with_expiry = []
+            for username in auth.credentials.keys():
+                info = auth.get_account_info(username)
+                if info and info['has_expiry'] and not info['is_expired']:
+                    users_with_expiry.append(username)
+            
+            if users_with_expiry:
+                with st.form("extend_user_form"):
+                    extend_username = st.selectbox(
+                        "Select User to Extend",
+                        users_with_expiry,
+                        help="Only shows users with active trial accounts"
+                    )
+                    
+                    # Show current expiry
+                    if extend_username:
+                        user_info = auth.get_account_info(extend_username)
+                        st.info(f"**Current Status:**\n\n"
+                               f"⏰ Time remaining: {user_info['time_remaining']}\n\n"
+                               f"📅 Expires: {user_info['expiry_time']}")
+                    
+                    extend_hours = st.number_input(
+                        "Additional Hours",
+                        min_value=1,
+                        max_value=168,  # 7 days max
+                        value=2,
+                        help="How many hours to add to current expiration"
+                    )
+                    
+                    submit_extend = st.form_submit_button("⏰ Extend Account", use_container_width=True, type="primary")
+                    
+                    if submit_extend:
+                        success, message = auth.extend_account(extend_username, extend_hours)
+                        if success:
+                            st.success(f"✅ {message}")
+                        else:
+                            st.error(f"❌ {message}")
+            else:
+                st.info("ℹ️ No active trial accounts to extend")
+        
+        st.markdown("---")
+        
+        # User list section
+        st.subheader("👥 All Users")
+        
+        # Get all users
+        all_users = []
+        for username in auth.credentials.keys():
+            info = auth.get_account_info(username)
+            if info:
+                all_users.append(info)
+        
+        if all_users:
+            # Create a table view
+            st.markdown("**Active Users:**")
+            
+            for user_info in all_users:
+                with st.expander(f"👤 {user_info['username']}", expanded=False):
+                    col_info1, col_info2 = st.columns(2)
+                    
+                    with col_info1:
+                        st.markdown(f"**Account Type:**")
+                        if user_info['has_expiry']:
+                            st.markdown("🕐 Temporary (Trial)")
+                        else:
+                            st.markdown("✨ Permanent")
+                    
+                    with col_info2:
+                        st.markdown(f"**Status:**")
+                        if user_info['is_expired']:
+                            st.markdown("❌ **EXPIRED**")
+                        elif user_info['has_expiry']:
+                            st.markdown(f"✅ Active ({user_info['time_remaining']} left)")
+                        else:
+                            st.markdown("✅ Active (No expiry)")
+                    
+                    if user_info['has_expiry']:
+                        st.markdown(f"**Expiry Date:** {user_info['expiry_time']}")
+                    else:
+                        st.markdown(f"**Expiry Date:** Never")
+        
+        st.markdown("---")
+        
+        # Quick stats
+        st.subheader("📊 Quick Statistics")
+        
+        total_users = len(auth.credentials)
+        trial_users = len([u for u in all_users if u['has_expiry']])
+        permanent_users = total_users - trial_users
+        expired_users = len([u for u in all_users if u['is_expired']])
+        active_trial_users = len([u for u in all_users if u['has_expiry'] and not u['is_expired']])
+        
+        col_stat1, col_stat2, col_stat3, col_stat4 = st.columns(4)
+        
+        with col_stat1:
+            st.metric("Total Users", total_users)
+        
+        with col_stat2:
+            st.metric("Active Trials", active_trial_users)
+        
+        with col_stat3:
+            st.metric("Permanent", permanent_users)
+        
+        with col_stat4:
+            st.metric("Expired", expired_users)
+        
+        st.markdown("---")
+        st.info("💡 **Tip:** Trial accounts automatically expire and users will see an error message when trying to log in after expiration.")
 
 # Sidebar
 with st.sidebar:

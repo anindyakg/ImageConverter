@@ -33,12 +33,31 @@ class SimpleAuthenticator:
         """Load credentials from file or use defaults"""
         if os.path.exists(self.credentials_file):
             with open(self.credentials_file, 'r') as f:
-                return json.load(f)
+                data = json.load(f)
+                # Convert old format to new format if needed
+                if data and isinstance(list(data.values())[0], str):
+                    # Old format: {'username': 'hash'}
+                    # Convert to new format: {'username': {'password': 'hash', 'expiry': None}}
+                    new_data = {}
+                    for username, password_hash in data.items():
+                        new_data[username] = {
+                            'password': password_hash,
+                            'expiry': None  # No expiry for existing users
+                        }
+                    self._save_credentials(new_data)
+                    return new_data
+                return data
         else:
             # Default credentials (change these!)
             default_creds = {
-                'admin': self.hash_password('admin123'),
-                'demo': self.hash_password('demo123')
+                'admin': {
+                    'password': self.hash_password('admin123'),
+                    'expiry': None  # Permanent account
+                },
+                'demo': {
+                    'password': self.hash_password('demo123'),
+                    'expiry': None  # Permanent account
+                }
             }
             self._save_credentials(default_creds)
             return default_creds
@@ -54,28 +73,125 @@ class SimpleAuthenticator:
         return hashlib.sha256(password.encode()).hexdigest()
     
     def verify_credentials(self, username, password):
-        """Verify username and password"""
+        """Verify username and password, check if account has expired"""
         if username not in self.credentials:
-            return False
+            return False, "Invalid username or password"
         
+        user_data = self.credentials[username]
+        
+        # Check if account has expired
+        if user_data.get('expiry'):
+            expiry_time = datetime.fromisoformat(user_data['expiry'])
+            if datetime.now() > expiry_time:
+                return False, "Account has expired. Please contact support."
+        
+        # Verify password
         password_hash = self.hash_password(password)
-        return self.credentials[username] == password_hash
-    
-    def add_user(self, username, password):
-        """Add new user"""
-        if username in self.credentials:
-            return False, "Username already exists"
+        if user_data['password'] == password_hash:
+            return True, "Success"
         
-        self.credentials[username] = self.hash_password(password)
+        return False, "Invalid username or password"
+    
+    def add_user(self, username, password, expiry_hours=None):
+        """
+        Add new user with optional expiration
+        
+        Args:
+            username: Username for the new account
+            password: Password for the new account
+            expiry_hours: Number of hours until account expires (None = no expiry)
+        
+        Returns:
+            Tuple of (success: bool, message: str, expiry_time: str or None)
+        """
+        if username in self.credentials:
+            return False, "Username already exists", None
+        
+        # Calculate expiry time if specified
+        expiry_time = None
+        if expiry_hours:
+            expiry_datetime = datetime.now() + timedelta(hours=expiry_hours)
+            expiry_time = expiry_datetime.isoformat()
+        
+        self.credentials[username] = {
+            'password': self.hash_password(password),
+            'expiry': expiry_time
+        }
         self._save_credentials(self.credentials)
-        return True, "User created successfully"
+        
+        if expiry_time:
+            expiry_str = datetime.fromisoformat(expiry_time).strftime("%Y-%m-%d %H:%M:%S")
+            return True, f"User created successfully. Account expires: {expiry_str}", expiry_time
+        else:
+            return True, "User created successfully (permanent account)", None
+    
+    def add_trial_user(self, username, password, trial_hours=2):
+        """
+        Add a trial user that expires after specified hours (default 2 hours)
+        
+        Args:
+            username: Username for trial account
+            password: Password for trial account
+            trial_hours: Hours until expiration (default: 2)
+        
+        Returns:
+            Tuple of (success: bool, message: str, expiry_time: str)
+        """
+        return self.add_user(username, password, expiry_hours=trial_hours)
+    
+    def get_account_info(self, username):
+        """Get account information including expiry status"""
+        if username not in self.credentials:
+            return None
+        
+        user_data = self.credentials[username]
+        info = {
+            'username': username,
+            'has_expiry': user_data.get('expiry') is not None
+        }
+        
+        if user_data.get('expiry'):
+            expiry_datetime = datetime.fromisoformat(user_data['expiry'])
+            info['expiry_time'] = expiry_datetime.strftime("%Y-%m-%d %H:%M:%S")
+            info['is_expired'] = datetime.now() > expiry_datetime
+            
+            if not info['is_expired']:
+                time_remaining = expiry_datetime - datetime.now()
+                hours = int(time_remaining.total_seconds() // 3600)
+                minutes = int((time_remaining.total_seconds() % 3600) // 60)
+                info['time_remaining'] = f"{hours}h {minutes}m"
+        else:
+            info['expiry_time'] = "Never (Permanent)"
+            info['is_expired'] = False
+            info['time_remaining'] = "Unlimited"
+        
+        return info
+    
+    def extend_account(self, username, additional_hours):
+        """Extend account expiration by additional hours"""
+        if username not in self.credentials:
+            return False, "User not found"
+        
+        user_data = self.credentials[username]
+        
+        if not user_data.get('expiry'):
+            return False, "Account has no expiration (permanent account)"
+        
+        current_expiry = datetime.fromisoformat(user_data['expiry'])
+        new_expiry = current_expiry + timedelta(hours=additional_hours)
+        
+        self.credentials[username]['expiry'] = new_expiry.isoformat()
+        self._save_credentials(self.credentials)
+        
+        return True, f"Account extended until {new_expiry.strftime('%Y-%m-%d %H:%M:%S')}"
     
     def change_password(self, username, old_password, new_password):
         """Change user password"""
-        if not self.verify_credentials(username, old_password):
-            return False, "Invalid current password"
+        success, message = self.verify_credentials(username, old_password)
+        if not success:
+            return False, message
         
-        self.credentials[username] = self.hash_password(new_password)
+        self.credentials[username]['password'] = self.hash_password(new_password)
         self._save_credentials(self.credentials)
         return True, "Password changed successfully"
     
@@ -246,13 +362,15 @@ class SimpleAuthenticator:
                 if submit:
                     if not username or not password:
                         st.error("Please enter both username and password")
-                    elif self.verify_credentials(username, password):
-                        # Set flag to show T&C popup
-                        st.session_state.show_terms = True
-                        st.session_state.pending_username = username
-                        st.rerun()
                     else:
-                        st.error("❌ Invalid username or password")
+                        success, message = self.verify_credentials(username, password)
+                        if success:
+                            # Set flag to show T&C popup
+                            st.session_state.show_terms = True
+                            st.session_state.pending_username = username
+                            st.rerun()
+                        else:
+                            st.error(f"❌ {message}")
             
             st.markdown("---")
             st.caption("🔒 Your data is secure and encrypted")
@@ -329,14 +447,26 @@ class SimpleAuthenticator:
         return self.require_auth()
     
     def show_user_info(self, location='sidebar'):
-        """Display user info with logout button"""
+        """Display user info with logout button and expiry information"""
+        account_info = self.get_account_info(st.session_state.username)
+        
         if location == 'sidebar':
             with st.sidebar:
                 st.markdown("---")
                 st.markdown(f"**👤 Logged in as:** {st.session_state.username}")
+                
+                if account_info and account_info['has_expiry']:
+                    if account_info['is_expired']:
+                        st.error(f"⏰ Account expired")
+                    else:
+                        st.info(f"⏰ Time remaining: {account_info['time_remaining']}")
+                        st.caption(f"Expires: {account_info['expiry_time']}")
+                else:
+                    st.success("✨ Permanent account")
+                
                 if st.session_state.login_time:
                     login_time = st.session_state.login_time.strftime("%Y-%m-%d %H:%M")
-                    st.caption(f"🕒 Login time: {login_time}")
+                    st.caption(f"🕒 Login: {login_time}")
                 
                 if st.button("🚪 Logout", use_container_width=True):
                     self.logout()
@@ -347,6 +477,8 @@ class SimpleAuthenticator:
             col1, col2 = st.columns([3, 1])
             with col1:
                 st.markdown(f"**👤 Logged in as:** {st.session_state.username}")
+                if account_info and account_info['has_expiry'] and not account_info['is_expired']:
+                    st.caption(f"⏰ {account_info['time_remaining']} remaining")
             with col2:
                 if st.button("🚪 Logout"):
                     self.logout()
