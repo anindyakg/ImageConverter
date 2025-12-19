@@ -29,6 +29,26 @@ auth = SimpleAuthenticator(credentials_file='users.json')
 if not auth.require_authentication():
     st.stop()
 
+# ============================================
+# AUTO-REFRESH FOR TRIAL ACCOUNTS
+# ============================================
+import time as time_module
+
+# Check if user has trial account and set up auto-refresh
+account_info = auth.get_account_info(st.session_state.username)
+if account_info and account_info['has_expiry'] and not account_info['is_expired']:
+    # Initialize refresh timer if not exists
+    if 'page_load_time' not in st.session_state:
+        st.session_state.page_load_time = time_module.time()
+    
+    # Auto-refresh every 60 seconds
+    current_time = time_module.time()
+    time_since_load = current_time - st.session_state.page_load_time
+    
+    if time_since_load >= 60:
+        st.session_state.page_load_time = current_time
+        st.rerun()
+
 # Show user info in sidebar (will be added at the end)
 # auth.show_user_info(location='sidebar')
 
@@ -1139,13 +1159,15 @@ if st.session_state.username == 'admin':
                 )
                 
                 if account_type == "Temporary (Trial)":
-                    trial_hours = st.number_input(
-                        "Trial Duration (hours)",
-                        min_value=1,
-                        max_value=720,  # 30 days max
-                        value=2,
-                        help="How many hours until account expires"
+                    trial_minutes = st.number_input(
+                        "Trial Duration (minutes)",
+                        min_value=10,
+                        max_value=43200,  # 30 days max
+                        value=120,  # Default 2 hours = 120 minutes
+                        step=10,  # 10-minute increments
+                        help="How many minutes until account expires (increments of 10 minutes)"
                     )
+                    trial_hours = trial_minutes / 60  # Convert to hours for the function
                 else:
                     trial_hours = None
                 
@@ -1214,13 +1236,15 @@ if st.session_state.username == 'admin':
                         except Exception as e:
                             st.warning(f"Could not load user info: {str(e)}")
                     
-                    extend_hours = st.number_input(
-                        "Additional Hours",
-                        min_value=1,
-                        max_value=168,  # 7 days max
-                        value=2,
-                        help="How many hours to add to current expiration"
+                    extend_minutes = st.number_input(
+                        "Additional Minutes",
+                        min_value=10,
+                        max_value=10080,  # 7 days max
+                        value=120,  # Default 2 hours
+                        step=10,  # 10-minute increments
+                        help="How many minutes to add to current expiration (increments of 10 minutes)"
                     )
+                    extend_hours = extend_minutes / 60  # Convert to hours
                     
                     submit_extend = st.form_submit_button("⏰ Extend Account", use_container_width=True, type="primary")
                     
