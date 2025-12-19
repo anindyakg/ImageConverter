@@ -1,5 +1,6 @@
 streamlit>=1.29.0
 Pillow>=10.2.0
 google-generativeai>=0.8.3
+streamlit-autorefresh>=1.0.1
 numpy>=1.24.0
 rembg>=2.0.50

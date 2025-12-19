@@ -11,6 +11,14 @@ from PIL import ImageOps
 # Import authentication
 from simple_auth import SimpleAuthenticator
 
+# Try to import streamlit-autorefresh for auto-timer updates
+try:
+    from streamlit_autorefresh import st_autorefresh
+    HAS_AUTOREFRESH = True
+except ImportError:
+    HAS_AUTOREFRESH = False
+    # Will use manual refresh only
+
 # Page config
 st.set_page_config(
     page_title="Photo Style Converter Pro",
@@ -30,24 +38,18 @@ if not auth.require_authentication():
     st.stop()
 
 # ============================================
-# AUTO-REFRESH FOR TRIAL ACCOUNTS
+# AUTO-REFRESH FOR TRIAL ACCOUNTS (EVERY 60 SECONDS)
 # ============================================
-import time as time_module
-
-# Check if user has trial account and set up auto-refresh
+# Check if user has trial account and enable auto-refresh
 account_info = auth.get_account_info(st.session_state.username)
 if account_info and account_info['has_expiry'] and not account_info['is_expired']:
-    # Initialize refresh timer if not exists
-    if 'page_load_time' not in st.session_state:
-        st.session_state.page_load_time = time_module.time()
-    
-    # Auto-refresh every 60 seconds
-    current_time = time_module.time()
-    time_since_load = current_time - st.session_state.page_load_time
-    
-    if time_since_load >= 60:
-        st.session_state.page_load_time = current_time
-        st.rerun()
+    if HAS_AUTOREFRESH:
+        # Auto-refresh every 60 seconds using streamlit-autorefresh
+        count = st_autorefresh(interval=60000, limit=None, key="timer_autorefresh")
+    else:
+        # Fallback: Manual refresh only
+        # Show instruction to install streamlit-autorefresh for auto-updates
+        pass
 
 # Show user info in sidebar (will be added at the end)
 # auth.show_user_info(location='sidebar')

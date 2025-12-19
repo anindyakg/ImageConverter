@@ -505,8 +505,18 @@ class SimpleAuthenticator:
                         
                         st.caption(f"📅 Expires: {account_info['expiry_time']}")
                         
+                        # Show auto-refresh status
+                        try:
+                            from streamlit_autorefresh import st_autorefresh
+                            st.caption("✅ Auto-refresh: Enabled (every 60s)")
+                        except ImportError:
+                            st.caption("⚠️ Auto-refresh: Disabled (manual only)")
+                            st.caption("💡 Click '🔄 Refresh Now' to update timer")
+                        
                         # Manual refresh button
                         if st.button("🔄 Refresh Now", use_container_width=True, key="refresh_timer"):
+                            import time as time_module
+                            st.session_state.last_timer_update = time_module.time()
                             st.rerun()
                 else:
                     st.success("✨ Permanent account")
