@@ -222,6 +222,83 @@ def upscale_image(image, factor=2):
     new_size = (width * factor, height * factor)
     return image.resize(new_size, Image.Resampling.LANCZOS)
 
+def generate_model_clone(input_image, model_photo):
+    """Generate an exact clone of the model photo, replacing the input image's subject
+    
+    This creates an exact replica with:
+    - Same clothes and outfit as model
+    - Same pose and body position as model
+    - Same facial expression as model
+    - Same background as model
+    - Same lighting and colors as model
+    """
+    api_key = os.getenv("GOOGLE_API_KEY") or st.secrets.get("GOOGLE_API_KEY", None)
+    
+    if not api_key:
+        st.error("⚠️ Google API key not found.")
+        return None
+    
+    try:
+        # Configure the API
+        genai.configure(api_key=api_key)
+        
+        # Create clone prompt
+        prompt = """Generate a new photo that is an EXACT REPLICA of the reference model photo provided.
+
+CRITICAL REQUIREMENTS - Copy these EXACTLY from the model photo:
+1. CLOTHES: Identical outfit, same colors, patterns, style, fit, and accessories
+2. POSE: Exact same body position, posture, stance, and positioning
+3. FACIAL EXPRESSION: Same exact expression, emotion, gaze direction
+4. BACKGROUND: Same environment, setting, and background elements
+5. LIGHTING: Identical lighting direction, intensity, and shadows
+6. COLORS: Same color palette, saturation, and color grading
+7. FRAMING: Same camera angle, distance, and composition
+8. STYLE: Same photographic style and overall aesthetic
+
+The input image is just for reference of the person's face/identity. Replace everything else to match the model photo exactly.
+
+Generate a photo where the person from the input image appears EXACTLY as they would if they were photographed in the same way as the model photo - same clothes, same pose, same expression, same everything."""
+        
+        # Create model instance
+        model = genai.GenerativeModel('gemini-2.5-flash-image-preview')
+        
+        # Configure safety settings
+        safety_settings = [
+            {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_ONLY_HIGH"},
+            {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_ONLY_HIGH"},
+            {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_ONLY_HIGH"},
+            {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_ONLY_HIGH"}
+        ]
+        
+        # Generate clone with both images
+        response = model.generate_content(
+            [
+                prompt,
+                "Input image (person to clone):", input_image,
+                "Reference model photo (copy everything from this):", model_photo
+            ],
+            safety_settings=safety_settings
+        )
+        
+        # Check for generated image in response
+        if hasattr(response, 'parts') and response.parts:
+            for part in response.parts:
+                if hasattr(part, 'inline_data') and part.inline_data:
+                    # Extract the generated image
+                    image_data = part.inline_data.data
+                    processed_image = Image.open(io.BytesIO(image_data))
+                    # Convert to RGB
+                    processed_image = convert_to_rgb(processed_image)
+                    return processed_image
+        
+        # If no image returned, show error
+        st.error("⚠️ AI did not generate an image. Try again or use a different model photo.")
+        return None
+        
+    except Exception as e:
+        st.error(f"❌ Clone generation error: {str(e)}")
+        return None
+
 def generate_image_variation(image, style_name, variation_prompt, enhancements=None, custom_background=None, preserve_age=True, target_age=None, detected_age=None):
     """Generate style variation using Gemini 2.5 Flash Image (Nano Banana)"""
     api_key = os.getenv("GOOGLE_API_KEY") or st.secrets.get("GOOGLE_API_KEY", None)
@@ -774,12 +851,12 @@ with tab2:
         
         # Model Photo Upload (NEW FEATURE)
         st.markdown("### 🎭 Model Photo (Optional)")
-        st.caption("Upload a reference photo to apply its style, look, and characteristics to your images")
+        st.caption("Upload a reference photo to clone or apply its style to your images")
         
         model_photo_file = st.file_uploader(
             "Choose model/reference photo",
             type=['png', 'jpg', 'jpeg'],
-            help="Upload a photo whose style and appearance you want to replicate in your images",
+            help="Upload a photo to clone or use as style reference",
             key=f"model_photo_uploader_{st.session_state.uploader_key}"
         )
         
@@ -789,13 +866,28 @@ with tab2:
             with col_model1:
                 st.image(st.session_state.model_photo, caption="Model Photo", use_container_width=True)
             with col_model2:
-                st.success("✅ Model photo loaded! Your images will be rebuilt to match this style.")
-                st.info("**The AI will:**\n- Analyze the model photo's style and characteristics\n- Apply similar lighting, color grading, and mood\n- Match the overall aesthetic and look")
+                # Add clone mode checkbox
+                st.session_state.clone_mode = st.checkbox(
+                    "🎯 **Clone Mode** - Generate exact replica of model photo",
+                    value=st.session_state.get('clone_mode', False),
+                    help="When enabled, generates an exact copy with same clothes, pose, expression, and background. All other settings will be ignored.",
+                    key="clone_mode_checkbox"
+                )
+                
+                if st.session_state.clone_mode:
+                    st.success("✅ **Clone Mode Active!**")
+                    st.warning("**The AI will generate an exact replica:**\n- Same clothes and outfit\n- Same pose and body position\n- Same facial expression\n- Same background\n- Same lighting and colors\n\n⚠️ All style categories will be bypassed!")
+                else:
+                    st.success("✅ Model photo loaded! Will apply style to your images.")
+                    st.info("**Style Mode:**\n- Analyze model's style and characteristics\n- Apply similar lighting and color grading\n- Match overall aesthetic\n- Your original pose/clothes preserved")
+                
                 if st.button("❌ Clear Model Photo", key="clear_model_photo"):
                     st.session_state.model_photo = None
+                    st.session_state.clone_mode = False
                     st.rerun()
         else:
             st.session_state.model_photo = None
+            st.session_state.clone_mode = False
         
         st.markdown("---")
         
@@ -939,7 +1031,44 @@ with tab2:
                             if var_name in st.session_state.selected_samples:
                                 st.session_state.selected_samples.remove(var_name)
             
-            if len(st.session_state.selected_samples) > 0:
+            # Clone Mode Button (if model photo and clone mode enabled)
+            if st.session_state.get('clone_mode', False) and st.session_state.model_photo is not None:
+                st.markdown("---")
+                st.markdown("### 🎯 Clone Model Photo")
+                st.info("**Clone Mode Active:** Will generate exact replicas of the model photo for each input image")
+                
+                if st.button("🎯 Generate Model Clones", type="primary", use_container_width=True, key="generate_clones"):
+                    st.session_state.generated_images = {}
+                    
+                    st.warning("🎯 Generating exact clones of model photo...")
+                    
+                    progress_bar = st.progress(0)
+                    status_text = st.empty()
+                    
+                    total = len(st.session_state.edited_images)
+                    
+                    for img_idx, image in enumerate(st.session_state.edited_images):
+                        status_text.text(f"Cloning model photo for Image {img_idx+1}... ({img_idx+1}/{total})")
+                        
+                        # Generate clone with special prompt
+                        generated = generate_model_clone(
+                            image,
+                            st.session_state.model_photo
+                        )
+                        
+                        if generated:
+                            key = f"img{img_idx+1}_model_clone"
+                            st.session_state.generated_images[key] = generated
+                        
+                        progress_bar.progress((img_idx + 1) / total)
+                    
+                    status_text.empty()
+                    progress_bar.empty()
+                    st.success(f"✅ Generated {len(st.session_state.generated_images)} model clones!")
+                    st.balloons()
+            
+            # Normal variation generation (only if NOT in clone mode)
+            elif len(st.session_state.selected_samples) > 0:
                 st.info(f"✅ {len(st.session_state.selected_samples)} variation(s) selected")
                 
                 if st.button("🎨 Generate Selected Variations", type="primary", use_container_width=True):
