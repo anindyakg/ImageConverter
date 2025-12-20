@@ -223,14 +223,14 @@ def upscale_image(image, factor=2):
     return image.resize(new_size, Image.Resampling.LANCZOS)
 
 def generate_model_clone(input_image, model_photo):
-    """Generate an exact clone of the model photo, replacing the input image's subject
+    """Generate a new photo of the person from input image, modeled after the reference photo
     
-    This creates an exact replica with:
+    Takes the person's face/identity from input image and recreates them with:
     - Same clothes and outfit as model
     - Same pose and body position as model
-    - Same facial expression as model
-    - Same background as model
-    - Same lighting and colors as model
+    - Same facial expression/smile as model
+    - Same style and aesthetic as model
+    - Keeps the person's actual face/identity from input image
     """
     api_key = os.getenv("GOOGLE_API_KEY") or st.secrets.get("GOOGLE_API_KEY", None)
     
@@ -242,22 +242,29 @@ def generate_model_clone(input_image, model_photo):
         # Configure the API
         genai.configure(api_key=api_key)
         
-        # Create clone prompt
-        prompt = """Generate a new photo that is an EXACT REPLICA of the reference model photo provided.
+        # Create clone prompt with clear identity preservation
+        prompt = """Create a NEW photo of the PERSON FROM THE INPUT IMAGE (preserve their face, identity, age, gender, and unique facial features exactly), but recreate them to match the reference model photo in these specific ways:
 
-CRITICAL REQUIREMENTS - Copy these EXACTLY from the model photo:
-1. CLOTHES: Identical outfit, same colors, patterns, style, fit, and accessories
-2. POSE: Exact same body position, posture, stance, and positioning
-3. FACIAL EXPRESSION: Same exact expression, emotion, gaze direction
-4. BACKGROUND: Same environment, setting, and background elements
-5. LIGHTING: Identical lighting direction, intensity, and shadows
-6. COLORS: Same color palette, saturation, and color grading
-7. FRAMING: Same camera angle, distance, and composition
-8. STYLE: Same photographic style and overall aesthetic
+PRESERVE FROM INPUT IMAGE (Keep these EXACTLY):
+- The person's face and facial features
+- The person's identity and appearance
+- The person's age and gender
+- The person's skin tone and complexion
+- The person's unique characteristics
 
-The input image is just for reference of the person's face/identity. Replace everything else to match the model photo exactly.
+COPY FROM MODEL PHOTO (Apply these to the person from input):
+1. CLOTHES: Dress the person in the EXACT same outfit, clothing, accessories, and style from the model photo
+2. POSE: Position the person in the EXACT same pose, body position, stance, and posture as the model photo
+3. SMILE/EXPRESSION: Give the person the EXACT same facial expression, smile, emotion, and mood as the model photo
+4. STYLE: Apply the same photographic style, lighting setup, color grading, and overall aesthetic from the model photo
+5. BACKGROUND: Use the same or similar background/environment as the model photo
+6. FRAMING: Use the same camera angle, distance, and composition as the model photo
 
-Generate a photo where the person from the input image appears EXACTLY as they would if they were photographed in the same way as the model photo - same clothes, same pose, same expression, same everything."""
+CRITICAL: This is NOT a face swap. Take the actual person from the input image and photograph them as if they were dressed and posed exactly like the model photo. The final result should look like the input person wearing the model's clothes, in the model's pose, with the model's expression.
+
+Think of it as: "What would the person from the input image look like if they wore these exact clothes, struck this exact pose, and had this exact smile?"
+
+Generate a high-quality, realistic photo."""
         
         # Create model instance
         model = genai.GenerativeModel('gemini-2.5-flash-image-preview')
@@ -274,8 +281,8 @@ Generate a photo where the person from the input image appears EXACTLY as they w
         response = model.generate_content(
             [
                 prompt,
-                "Input image (person to clone):", input_image,
-                "Reference model photo (copy everything from this):", model_photo
+                "Input image - PRESERVE this person's identity and face:", input_image,
+                "Model reference - COPY clothes, pose, smile, and style from this:", model_photo
             ],
             safety_settings=safety_settings
         )
@@ -868,15 +875,15 @@ with tab2:
             with col_model2:
                 # Add clone mode checkbox
                 st.session_state.clone_mode = st.checkbox(
-                    "🎯 **Clone Mode** - Generate exact replica of model photo",
+                    "🎯 **Clone Mode** - Recreate your photo based on model",
                     value=st.session_state.get('clone_mode', False),
-                    help="When enabled, generates an exact copy with same clothes, pose, expression, and background. All other settings will be ignored.",
+                    help="Your face stays the same, but you'll wear the model's clothes, pose, and expression",
                     key="clone_mode_checkbox"
                 )
                 
                 if st.session_state.clone_mode:
                     st.success("✅ **Clone Mode Active!**")
-                    st.warning("**The AI will generate an exact replica:**\n- Same clothes and outfit\n- Same pose and body position\n- Same facial expression\n- Same background\n- Same lighting and colors\n\n⚠️ All style categories will be bypassed!")
+                    st.warning("**Your photo will be recreated with:**\n- ✅ **Your face** (preserved)\n- 👔 **Model's clothes** (copied)\n- 🧍 **Model's pose** (copied)\n- 😊 **Model's smile/expression** (copied)\n- 🎨 **Model's style** (copied)\n\n⚠️ All style categories will be bypassed!")
                 else:
                     st.success("✅ Model photo loaded! Will apply style to your images.")
                     st.info("**Style Mode:**\n- Analyze model's style and characteristics\n- Apply similar lighting and color grading\n- Match overall aesthetic\n- Your original pose/clothes preserved")
@@ -1034,13 +1041,13 @@ with tab2:
             # Clone Mode Button (if model photo and clone mode enabled)
             if st.session_state.get('clone_mode', False) and st.session_state.model_photo is not None:
                 st.markdown("---")
-                st.markdown("### 🎯 Clone Model Photo")
-                st.info("**Clone Mode Active:** Will generate exact replicas of the model photo for each input image")
+                st.markdown("### 🎯 Clone Model Attributes")
+                st.info("**Clone Mode Active:** Your person will be recreated wearing the model's clothes, in the model's pose, with the model's smile/expression")
                 
-                if st.button("🎯 Generate Model Clones", type="primary", use_container_width=True, key="generate_clones"):
+                if st.button("🎯 Generate with Model Attributes", type="primary", use_container_width=True, key="generate_clones"):
                     st.session_state.generated_images = {}
                     
-                    st.warning("🎯 Generating exact clones of model photo...")
+                    st.warning("🎯 Recreating your person with model's attributes...")
                     
                     progress_bar = st.progress(0)
                     status_text = st.empty()
@@ -1048,7 +1055,7 @@ with tab2:
                     total = len(st.session_state.edited_images)
                     
                     for img_idx, image in enumerate(st.session_state.edited_images):
-                        status_text.text(f"Cloning model photo for Image {img_idx+1}... ({img_idx+1}/{total})")
+                        status_text.text(f"Applying model attributes to Image {img_idx+1}... ({img_idx+1}/{total})")
                         
                         # Generate clone with special prompt
                         generated = generate_model_clone(
@@ -1064,7 +1071,7 @@ with tab2:
                     
                     status_text.empty()
                     progress_bar.empty()
-                    st.success(f"✅ Generated {len(st.session_state.generated_images)} model clones!")
+                    st.success(f"✅ Generated {len(st.session_state.generated_images)} photos with model attributes!")
                     st.balloons()
             
             # Normal variation generation (only if NOT in clone mode)
