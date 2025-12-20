@@ -225,12 +225,7 @@ def upscale_image(image, factor=2):
 def generate_model_clone(input_image, model_photo):
     """Generate a new photo of the person from input image, modeled after the reference photo
     
-    Takes the person's face/identity from input image and recreates them with:
-    - Same clothes and outfit as model
-    - Same pose and body position as model
-    - Same facial expression/smile as model
-    - Same style and aesthetic as model
-    - Keeps the person's actual face/identity from input image
+    Uses a descriptive approach to preserve identity while copying attributes
     """
     api_key = os.getenv("GOOGLE_API_KEY") or st.secrets.get("GOOGLE_API_KEY", None)
     
@@ -242,29 +237,50 @@ def generate_model_clone(input_image, model_photo):
         # Configure the API
         genai.configure(api_key=api_key)
         
-        # Create clone prompt with clear identity preservation
-        prompt = """Create a NEW photo of the PERSON FROM THE INPUT IMAGE (preserve their face, identity, age, gender, and unique facial features exactly), but recreate them to match the reference model photo in these specific ways:
+        # Two-step approach: First describe the person, then apply to model
+        prompt = """You are tasked with creating a photo composite. Follow these steps exactly:
 
-PRESERVE FROM INPUT IMAGE (Keep these EXACTLY):
-- The person's face and facial features
-- The person's identity and appearance
-- The person's age and gender
-- The person's skin tone and complexion
-- The person's unique characteristics
+STEP 1 - ANALYZE THE PERSON (First Image):
+Look at the first image and note:
+- Facial features: face shape, eyes, nose, mouth, eyebrows, ears
+- Hair: color, style, length, texture
+- Skin tone and complexion
+- Age and gender
+- Any distinctive features (glasses, facial hair, etc.)
+- Overall appearance and identity
 
-COPY FROM MODEL PHOTO (Apply these to the person from input):
-1. CLOTHES: Dress the person in the EXACT same outfit, clothing, accessories, and style from the model photo
-2. POSE: Position the person in the EXACT same pose, body position, stance, and posture as the model photo
-3. SMILE/EXPRESSION: Give the person the EXACT same facial expression, smile, emotion, and mood as the model photo
-4. STYLE: Apply the same photographic style, lighting setup, color grading, and overall aesthetic from the model photo
-5. BACKGROUND: Use the same or similar background/environment as the model photo
-6. FRAMING: Use the same camera angle, distance, and composition as the model photo
+STEP 2 - ANALYZE THE MODEL REFERENCE (Second Image):
+Look at the second image and note:
+- Clothing and outfit details
+- Body pose and positioning
+- Facial expression and emotion
+- Background and setting
+- Lighting and photographic style
+- Camera angle and composition
 
-CRITICAL: This is NOT a face swap. Take the actual person from the input image and photograph them as if they were dressed and posed exactly like the model photo. The final result should look like the input person wearing the model's clothes, in the model's pose, with the model's expression.
+STEP 3 - CREATE THE COMPOSITE:
+Generate a NEW photo that combines these elements:
 
-Think of it as: "What would the person from the input image look like if they wore these exact clothes, struck this exact pose, and had this exact smile?"
+MANDATORY - Keep from FIRST image (the person):
+✓ Their exact facial features and face structure
+✓ Their hair color and style
+✓ Their skin tone
+✓ Their age and identity
+✓ Make them clearly recognizable as the same person
 
-Generate a high-quality, realistic photo."""
+MANDATORY - Copy from SECOND image (the model):
+✓ The exact clothing and accessories
+✓ The exact body pose and position
+✓ The exact facial expression (smile, emotion)
+✓ Similar background/environment
+✓ Same lighting style
+✓ Same camera angle and framing
+
+CRITICAL RULE: The person's face in the output must match the face in the FIRST image, NOT the second image. Only the styling/clothing/pose comes from the second image.
+
+Think: "Take Person A from image 1, and photograph them exactly like Person B in image 2 (same clothes, pose, smile) but keeping Person A's actual face."
+
+Generate a photorealistic image."""
         
         # Create model instance
         model = genai.GenerativeModel('gemini-2.5-flash-image-preview')
@@ -277,12 +293,14 @@ Generate a high-quality, realistic photo."""
             {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_ONLY_HIGH"}
         ]
         
-        # Generate clone with both images
+        # Generate with numbered labeling
         response = model.generate_content(
             [
                 prompt,
-                "Input image - PRESERVE this person's identity and face:", input_image,
-                "Model reference - COPY clothes, pose, smile, and style from this:", model_photo
+                "IMAGE 1 (THE PERSON - keep this face in final output):",
+                input_image,
+                "IMAGE 2 (MODEL REFERENCE - copy only clothes, pose, expression, NOT the face):",
+                model_photo
             ],
             safety_settings=safety_settings
         )
