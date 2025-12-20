@@ -76,6 +76,8 @@ if 'previous_style' not in st.session_state:
     st.session_state.previous_style = None
 if 'custom_background' not in st.session_state:
     st.session_state.custom_background = None
+if 'model_photo' not in st.session_state:
+    st.session_state.model_photo = None
 if 'detected_ages' not in st.session_state:
     st.session_state.detected_ages = {}
 if 'uploader_key' not in st.session_state:
@@ -293,8 +295,15 @@ def generate_image_variation(image, style_name, variation_prompt, enhancements=N
         if custom_background is not None:
             background_text = " Replace the background with the environment from the custom background image provided."
             
+            # Check if model photo is provided
+            model_photo_text = ""
+            has_model_photo = st.session_state.model_photo is not None
+            
+            if has_model_photo:
+                model_photo_text = " Match the style, lighting, color grading, and overall aesthetic of the reference model photo provided."
+            
             # Create prompt with custom background
-            prompt = f"Transform this photo: {variation_prompt}.{framing_text}{age_text}{enhancement_text}{background_text} Keep changes natural and subtle. Generate high-quality image."
+            prompt = f"Transform this photo: {variation_prompt}.{framing_text}{age_text}{enhancement_text}{background_text}{model_photo_text} Keep changes natural and subtle. Generate high-quality image."
             
             # Create model instance
             model = genai.GenerativeModel('gemini-2.5-flash-image-preview')
@@ -307,13 +316,24 @@ def generate_image_variation(image, style_name, variation_prompt, enhancements=N
                 {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_ONLY_HIGH"}
             ]
             
-            # Generate content with both images
+            # Generate content with images (include model photo if available)
+            content_parts = [prompt, image, "Custom background reference:", custom_background]
+            if has_model_photo:
+                content_parts.extend(["Style reference (model photo):", st.session_state.model_photo])
+            
             response = model.generate_content(
-                [prompt, image, "Custom background reference:", custom_background],
+                content_parts,
                 safety_settings=safety_settings
             )
         else:
-            prompt = f"Transform this photo: {variation_prompt}.{framing_text}{age_text}{enhancement_text} Keep changes subtle and natural. Generate high-quality image."
+            # Check if model photo is provided
+            model_photo_text = ""
+            has_model_photo = st.session_state.model_photo is not None
+            
+            if has_model_photo:
+                model_photo_text = " Match the style, lighting, color grading, and overall aesthetic of the reference model photo provided."
+            
+            prompt = f"Transform this photo: {variation_prompt}.{framing_text}{age_text}{enhancement_text}{model_photo_text} Keep changes subtle and natural. Generate high-quality image."
             
             # Create model instance
             model = genai.GenerativeModel('gemini-2.5-flash-image-preview')
@@ -326,8 +346,12 @@ def generate_image_variation(image, style_name, variation_prompt, enhancements=N
                 {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_ONLY_HIGH"}
             ]
             
-            # Generate content
-            response = model.generate_content([prompt, image], safety_settings=safety_settings)
+            # Generate content (include model photo if available)
+            content_parts = [prompt, image]
+            if has_model_photo:
+                content_parts.extend(["Style reference (model photo):", st.session_state.model_photo])
+            
+            response = model.generate_content(content_parts, safety_settings=safety_settings)
         
         # Check for generated image in response
         if hasattr(response, 'parts') and response.parts:
@@ -748,6 +772,33 @@ with tab2:
         
         st.markdown("---")
         
+        # Model Photo Upload (NEW FEATURE)
+        st.markdown("### 🎭 Model Photo (Optional)")
+        st.caption("Upload a reference photo to apply its style, look, and characteristics to your images")
+        
+        model_photo_file = st.file_uploader(
+            "Choose model/reference photo",
+            type=['png', 'jpg', 'jpeg'],
+            help="Upload a photo whose style and appearance you want to replicate in your images",
+            key=f"model_photo_uploader_{st.session_state.uploader_key}"
+        )
+        
+        if model_photo_file is not None:
+            st.session_state.model_photo = convert_to_rgb(Image.open(model_photo_file))
+            col_model1, col_model2 = st.columns([1, 3])
+            with col_model1:
+                st.image(st.session_state.model_photo, caption="Model Photo", use_container_width=True)
+            with col_model2:
+                st.success("✅ Model photo loaded! Your images will be rebuilt to match this style.")
+                st.info("**The AI will:**\n- Analyze the model photo's style and characteristics\n- Apply similar lighting, color grading, and mood\n- Match the overall aesthetic and look")
+                if st.button("❌ Clear Model Photo", key="clear_model_photo"):
+                    st.session_state.model_photo = None
+                    st.rerun()
+        else:
+            st.session_state.model_photo = None
+        
+        st.markdown("---")
+        
         # Age Detection and Control Section
         st.markdown("### 👤 Age Settings")
         
@@ -1139,13 +1190,15 @@ if st.session_state.username == 'admin':
                 )
                 
                 if account_type == "Temporary (Trial)":
-                    trial_hours = st.number_input(
-                        "Trial Duration (hours)",
-                        min_value=1,
-                        max_value=720,  # 30 days max
-                        value=2,
-                        help="How many hours until account expires"
+                    trial_minutes = st.number_input(
+                        "Trial Duration (minutes)",
+                        min_value=10,
+                        max_value=43200,  # 30 days max
+                        value=120,  # Default 2 hours = 120 minutes
+                        step=10,  # 10-minute increments
+                        help="How many minutes until account expires (increments of 10 minutes)"
                     )
+                    trial_hours = trial_minutes / 60  # Convert to hours for the function
                 else:
                     trial_hours = None
                 
@@ -1214,13 +1267,15 @@ if st.session_state.username == 'admin':
                         except Exception as e:
                             st.warning(f"Could not load user info: {str(e)}")
                     
-                    extend_hours = st.number_input(
-                        "Additional Hours",
-                        min_value=1,
-                        max_value=168,  # 7 days max
-                        value=2,
-                        help="How many hours to add to current expiration"
+                    extend_minutes = st.number_input(
+                        "Additional Minutes",
+                        min_value=10,
+                        max_value=10080,  # 7 days max
+                        value=120,  # Default 2 hours
+                        step=10,  # 10-minute increments
+                        help="How many minutes to add to current expiration (increments of 10 minutes)"
                     )
+                    extend_hours = extend_minutes / 60  # Convert to hours
                     
                     submit_extend = st.form_submit_button("⏰ Extend Account", use_container_width=True, type="primary")
                     

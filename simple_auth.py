@@ -170,11 +170,20 @@ class SimpleAuthenticator:
                 
                 if not info['is_expired']:
                     time_remaining = expiry_datetime - datetime.now()
-                    hours = int(time_remaining.total_seconds() // 3600)
-                    minutes = int((time_remaining.total_seconds() % 3600) // 60)
-                    info['time_remaining'] = f"{hours}h {minutes}m"
+                    total_seconds = int(time_remaining.total_seconds())
+                    hours = total_seconds // 3600
+                    minutes = (total_seconds % 3600) // 60
+                    seconds = total_seconds % 60
+                    
+                    if hours > 0:
+                        info['time_remaining'] = f"{hours}h {minutes}m {seconds}s"
+                    else:
+                        info['time_remaining'] = f"{minutes}m {seconds}s"
+                    
+                    info['total_seconds_remaining'] = total_seconds
                 else:
                     info['time_remaining'] = "Expired"
+                    info['total_seconds_remaining'] = 0
             except Exception as e:
                 # If there's an error parsing the expiry, treat as no expiry
                 info['expiry_time'] = "Error parsing expiry"
@@ -468,6 +477,8 @@ class SimpleAuthenticator:
     
     def show_user_info(self, location='sidebar'):
         """Display user info with logout button and expiry information"""
+        import time
+        
         account_info = self.get_account_info(st.session_state.username)
         
         if location == 'sidebar':
@@ -478,9 +489,27 @@ class SimpleAuthenticator:
                 if account_info and account_info['has_expiry']:
                     if account_info['is_expired']:
                         st.error(f"⏰ Account expired")
+                        st.warning("🚨 Your session has expired. You will be logged out in 3 seconds...")
+                        time.sleep(3)
+                        self.logout()
+                        st.rerun()
                     else:
-                        st.info(f"⏰ Time remaining: {account_info['time_remaining']}")
-                        st.caption(f"Expires: {account_info['expiry_time']}")
+                        total_seconds = account_info.get('total_seconds_remaining', 0)
+                        
+                        # Show warning if less than 5 minutes remaining
+                        if total_seconds <= 300 and total_seconds > 0:
+                            st.warning(f"⚠️ **Warning:** Only **{account_info['time_remaining']}** remaining!")
+                            st.caption("⚡ Please save your work!")
+                        else:
+                            st.info(f"⏰ Time remaining: **{account_info['time_remaining']}**")
+                        
+                        st.caption(f"📅 Expires: {account_info['expiry_time']}")
+                        
+                        # Manual refresh button
+                        if st.button("🔄 Refresh Timer", use_container_width=True, key="refresh_timer"):
+                            import time as time_module
+                            st.session_state.last_timer_update = time_module.time()
+                            st.rerun()
                 else:
                     st.success("✨ Permanent account")
                 
@@ -498,7 +527,11 @@ class SimpleAuthenticator:
             with col1:
                 st.markdown(f"**👤 Logged in as:** {st.session_state.username}")
                 if account_info and account_info['has_expiry'] and not account_info['is_expired']:
-                    st.caption(f"⏰ {account_info['time_remaining']} remaining")
+                    total_seconds = account_info.get('total_seconds_remaining', 0)
+                    if total_seconds <= 300:
+                        st.warning(f"⚠️ {account_info['time_remaining']} remaining")
+                    else:
+                        st.caption(f"⏰ {account_info['time_remaining']} remaining")
             with col2:
                 if st.button("🚪 Logout"):
                     self.logout()
