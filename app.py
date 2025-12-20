@@ -11,14 +11,6 @@ from PIL import ImageOps
 # Import authentication
 from simple_auth import SimpleAuthenticator
 
-# Try to import streamlit-autorefresh for auto-timer updates
-try:
-    from streamlit_autorefresh import st_autorefresh
-    HAS_AUTOREFRESH = True
-except ImportError:
-    HAS_AUTOREFRESH = False
-    # Will use manual refresh only
-
 # Page config
 st.set_page_config(
     page_title="Photo Style Converter Pro",
@@ -36,20 +28,6 @@ auth = SimpleAuthenticator(credentials_file='users.json')
 # Require authentication - if not logged in, show login page
 if not auth.require_authentication():
     st.stop()
-
-# ============================================
-# AUTO-REFRESH FOR TRIAL ACCOUNTS (EVERY 60 SECONDS)
-# ============================================
-# Check if user has trial account and enable auto-refresh
-account_info = auth.get_account_info(st.session_state.username)
-if account_info and account_info['has_expiry'] and not account_info['is_expired']:
-    if HAS_AUTOREFRESH:
-        # Auto-refresh every 60 seconds using streamlit-autorefresh
-        count = st_autorefresh(interval=60000, limit=None, key="timer_autorefresh")
-    else:
-        # Fallback: Manual refresh only
-        # Show instruction to install streamlit-autorefresh for auto-updates
-        pass
 
 # Show user info in sidebar (will be added at the end)
 # auth.show_user_info(location='sidebar')
@@ -1161,15 +1139,13 @@ if st.session_state.username == 'admin':
                 )
                 
                 if account_type == "Temporary (Trial)":
-                    trial_minutes = st.number_input(
-                        "Trial Duration (minutes)",
-                        min_value=10,
-                        max_value=43200,  # 30 days max
-                        value=120,  # Default 2 hours = 120 minutes
-                        step=10,  # 10-minute increments
-                        help="How many minutes until account expires (increments of 10 minutes)"
+                    trial_hours = st.number_input(
+                        "Trial Duration (hours)",
+                        min_value=1,
+                        max_value=720,  # 30 days max
+                        value=2,
+                        help="How many hours until account expires"
                     )
-                    trial_hours = trial_minutes / 60  # Convert to hours for the function
                 else:
                     trial_hours = None
                 
@@ -1238,15 +1214,13 @@ if st.session_state.username == 'admin':
                         except Exception as e:
                             st.warning(f"Could not load user info: {str(e)}")
                     
-                    extend_minutes = st.number_input(
-                        "Additional Minutes",
-                        min_value=10,
-                        max_value=10080,  # 7 days max
-                        value=120,  # Default 2 hours
-                        step=10,  # 10-minute increments
-                        help="How many minutes to add to current expiration (increments of 10 minutes)"
+                    extend_hours = st.number_input(
+                        "Additional Hours",
+                        min_value=1,
+                        max_value=168,  # 7 days max
+                        value=2,
+                        help="How many hours to add to current expiration"
                     )
-                    extend_hours = extend_minutes / 60  # Convert to hours
                     
                     submit_extend = st.form_submit_button("⏰ Extend Account", use_container_width=True, type="primary")
                     
