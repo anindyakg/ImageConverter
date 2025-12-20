@@ -237,50 +237,58 @@ def generate_model_clone(input_image, model_photo):
         # Configure the API
         genai.configure(api_key=api_key)
         
-        # Two-step approach: First describe the person, then apply to model
-        prompt = """You are tasked with creating a photo composite. Follow these steps exactly:
+        # Prompt with strong negative instructions
+        prompt = """Create a photo composite by following these instructions:
 
-STEP 1 - ANALYZE THE PERSON (First Image):
-Look at the first image and note:
-- Facial features: face shape, eyes, nose, mouth, eyebrows, ears
-- Hair: color, style, length, texture
-- Skin tone and complexion
-- Age and gender
-- Any distinctive features (glasses, facial hair, etc.)
-- Overall appearance and identity
+STEP 1 - IDENTIFY THE PERSON (IMAGE 1):
+The first image shows the person whose identity must be preserved. Study their:
+- Face shape, eyes, nose, mouth, chin, eyebrows
+- Hair color, style, and length
+- Skin tone and age
+- All unique facial characteristics
 
-STEP 2 - ANALYZE THE MODEL REFERENCE (Second Image):
-Look at the second image and note:
-- Clothing and outfit details
-- Body pose and positioning
-- Facial expression and emotion
-- Background and setting
-- Lighting and photographic style
-- Camera angle and composition
+STEP 2 - IDENTIFY ATTRIBUTES TO COPY (IMAGE 2):
+The second image is just a STYLE REFERENCE. Extract only these attributes:
+- Clothing and outfit
+- Body pose and stance
+- Facial expression type (smile, neutral, etc.)
+- Background setting
+- Lighting and photography style
+- Camera angle
 
-STEP 3 - CREATE THE COMPOSITE:
-Generate a NEW photo that combines these elements:
+STEP 3 - GENERATE THE OUTPUT:
+Create a photorealistic image where:
 
-MANDATORY - Keep from FIRST image (the person):
-✓ Their exact facial features and face structure
-✓ Their hair color and style
-✓ Their skin tone
-✓ Their age and identity
-✓ Make them clearly recognizable as the same person
+✅ KEEP (from IMAGE 1):
+- The EXACT same face as IMAGE 1
+- Same facial structure and features as IMAGE 1
+- Same hair as IMAGE 1
+- Same skin tone as IMAGE 1
+- Person must be IDENTIFIABLE as the person from IMAGE 1
 
-MANDATORY - Copy from SECOND image (the model):
-✓ The exact clothing and accessories
-✓ The exact body pose and position
-✓ The exact facial expression (smile, emotion)
-✓ Similar background/environment
-✓ Same lighting style
-✓ Same camera angle and framing
+✅ APPLY (from IMAGE 2):
+- Wear the same clothes as IMAGE 2
+- Same body pose as IMAGE 2
+- Same type of expression as IMAGE 2
+- Similar background as IMAGE 2
+- Same lighting style as IMAGE 2
 
-CRITICAL RULE: The person's face in the output must match the face in the FIRST image, NOT the second image. Only the styling/clothing/pose comes from the second image.
+❌ DO NOT (Critical Restrictions):
+- DO NOT use the face from IMAGE 2
+- DO NOT copy facial features from IMAGE 2
+- DO NOT change the person's identity from IMAGE 1
+- DO NOT make the person from IMAGE 1 look like the person from IMAGE 2
+- DO NOT perform a face swap
+- DO NOT blend the two faces together
+- The output face MUST match IMAGE 1, NOT IMAGE 2
 
-Think: "Take Person A from image 1, and photograph them exactly like Person B in image 2 (same clothes, pose, smile) but keeping Person A's actual face."
+FINAL CHECK:
+Ask yourself: "Can I recognize this as the same person from IMAGE 1?"
+If NO, you have failed. The face MUST be from IMAGE 1.
 
-Generate a photorealistic image."""
+Think of this as: Photographing the person from IMAGE 1 while they wear the outfit from IMAGE 2, strike the pose from IMAGE 2, and have a similar expression to IMAGE 2.
+
+Generate a high-quality, photorealistic image."""
         
         # Create model instance
         model = genai.GenerativeModel('gemini-2.5-flash-image-preview')
@@ -293,13 +301,13 @@ Generate a photorealistic image."""
             {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_ONLY_HIGH"}
         ]
         
-        # Generate with numbered labeling
+        # Generate with very explicit labeling
         response = model.generate_content(
             [
                 prompt,
-                "IMAGE 1 (THE PERSON - keep this face in final output):",
+                "IMAGE 1 - THE PERSON (Use this person's face in the output. This face must be preserved exactly):",
                 input_image,
-                "IMAGE 2 (MODEL REFERENCE - copy only clothes, pose, expression, NOT the face):",
+                "IMAGE 2 - STYLE REFERENCE ONLY (Copy clothes, pose, expression. DO NOT use this person's face):",
                 model_photo
             ],
             safety_settings=safety_settings
