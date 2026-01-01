@@ -110,6 +110,18 @@ STYLE_VARIATIONS = {
         "Digital Art": "artistic digital illustration, modern creative style, vibrant artistic interpretation, unique visual design",
         "Impressionist": "artistic impressionist style, loose brushwork, play of light, artistic color palette, Monet-inspired"
     },
+    "doodle": {
+        "Simple Line Doodle": "simple black line doodle sketch, minimalist hand-drawn style, playful cartoon outline, cute simple illustration",
+        "Colored Doodle": "colorful doodle art, vibrant hand-drawn sketch, playful illustrated style, fun cartoon aesthetic",
+        "Notebook Sketch": "casual notebook doodle, pen sketch style, informal hand-drawn look, spontaneous artistic sketch",
+        "Comic Doodle": "comic book doodle style, bold outlines, dynamic cartoon illustration, fun graphic novel aesthetic"
+    },
+    "ghibli": {
+        "Studio Ghibli": "Studio Ghibli anime art style, soft watercolor aesthetic, dreamy whimsical animation, Miyazaki-inspired illustration, gentle pastel colors",
+        "Spirited Away Style": "Spirited Away anime style, detailed Ghibli animation, magical whimsical atmosphere, soft lighting, enchanting scenery",
+        "My Neighbor Totoro": "My Neighbor Totoro art style, warm gentle Ghibli aesthetic, countryside pastoral scenes, soft friendly animation",
+        "Howl's Moving Castle": "Howl's Moving Castle style, romantic Ghibli animation, detailed fantasy aesthetic, magical dreamy atmosphere"
+    },
     "vintage": {
         "1970s Film": "vintage 1970s film photography, warm tones, nostalgic film grain, classic retro aesthetic",
         "Sepia Classic": "vintage sepia tone photograph, antique timeless look, historical photography style",
