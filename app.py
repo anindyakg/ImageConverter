@@ -889,6 +889,9 @@ with tab2:
         
         with col_style1:
             # Style selection
+            # Debug: Show number of categories
+            st.caption(f"📊 Available categories: {len(STYLE_VARIATIONS)} | {', '.join(STYLE_VARIATIONS.keys())}")
+            
             selected_style = st.selectbox(
                 "Choose Style Category:",
                 options=list(STYLE_VARIATIONS.keys()),
